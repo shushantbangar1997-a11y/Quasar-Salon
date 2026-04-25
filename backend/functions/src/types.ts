@@ -91,6 +91,7 @@ export interface QuasarStaff {
   name: string;
   role: string;
   emoji: string;
+  photoUrl?: string;
   specialties: string[];
   experience: string;
   available: boolean;
