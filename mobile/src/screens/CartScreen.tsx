@@ -24,7 +24,7 @@ export default function CartScreen({ navigation }: CartScreenProps) {
           <Text style={{ fontSize: 60 }}>🛒</Text>
           <Text style={s.emptyTitle}>Your cart is empty</Text>
           <Text style={s.emptyText}>Browse our services and add them here</Text>
-          <Pressable style={s.browseBtn} onPress={() => navigation.navigate('Home')}>
+          <Pressable style={s.browseBtn} onPress={() => navigation.navigate('MainTabs', { screen: 'Home' })}>
             <Text style={s.browseBtnText}>Browse Services</Text>
           </Pressable>
         </View>

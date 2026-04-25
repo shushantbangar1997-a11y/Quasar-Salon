@@ -138,13 +138,22 @@ export default function BookingScreen({ navigation }: BookingScreenProps) {
             <View style={s.timeGrid}>
               {TIME_SLOTS.map(t => {
                 const active = selectedTime === t;
+                const freeCount = QUASAR_STAFF.filter(st => {
+                  if (!st.available) return false;
+                  return !(DEMO_BUSY_SLOTS[st.id] || []).includes(t);
+                }).length;
+                const noAvail = freeCount === 0;
                 return (
                   <Pressable
                     key={t}
-                    onPress={() => setSelectedTime(t)}
-                    style={[s.timeChip, active && s.timeChipActive]}
+                    onPress={() => !noAvail && setSelectedTime(t)}
+                    disabled={noAvail}
+                    style={[s.timeChip, active && s.timeChipActive, noAvail && s.timeChipUnavail]}
                   >
-                    <Text style={[s.timeText, active && s.timeTextActive]}>{t}</Text>
+                    <Text style={[s.timeText, active && s.timeTextActive, noAvail && s.timeTextDim]}>{t}</Text>
+                    <Text style={[s.timeAvail, active && { color: COLORS.bg }, noAvail && s.timeTextDim]}>
+                      {noAvail ? 'Full' : `${freeCount} free`}
+                    </Text>
                   </Pressable>
                 );
               })}
@@ -297,8 +306,11 @@ const s = StyleSheet.create({
   timeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   timeChip: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: RADIUS.sm, backgroundColor: COLORS.bgCard, borderWidth: 1, borderColor: COLORS.border, minWidth: 88, alignItems: 'center' },
   timeChipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  timeChipUnavail: { opacity: 0.4, borderStyle: 'dashed' },
   timeText: { fontSize: 13, color: COLORS.text, fontWeight: '500' },
   timeTextActive: { color: COLORS.bg, fontWeight: '700' },
+  timeTextDim: { color: COLORS.textMuted },
+  timeAvail: { fontSize: 10, color: COLORS.primary, marginTop: 3, fontWeight: '600' },
   stylistCard: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: COLORS.bgCard, borderRadius: RADIUS.lg, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: COLORS.border },
   stylistCardActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primaryDim },
   stylistCardBusy: { opacity: 0.45 },
