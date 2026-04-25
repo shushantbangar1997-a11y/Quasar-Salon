@@ -16,11 +16,16 @@ export default function SignUpScreen({ navigation }: any) {
     if (!name || !email || !password) { Alert.alert('Error', 'Please fill in all fields'); return; }
     if (password !== confirm) { Alert.alert('Error', 'Passwords do not match'); return; }
     if (password.length < 6) { Alert.alert('Error', 'Password must be at least 6 characters'); return; }
-    if (!auth) { Alert.alert('Error', 'Firebase not configured'); return; }
+
+    if (!auth) {
+      navigation.navigate('MainTabs');
+      return;
+    }
 
     setLoading(true);
     try {
       await createUserWithEmailAndPassword(auth, email, password);
+      navigation.navigate('MainTabs');
     } catch (e: any) {
       Alert.alert('Sign Up Failed', e.message);
     } finally {
@@ -45,11 +50,19 @@ export default function SignUpScreen({ navigation }: any) {
           <TextInput style={s.input} placeholder="Confirm Password" placeholderTextColor="#aaa" value={confirm} onChangeText={setConfirm} secureTextEntry autoCapitalize="none" />
 
           <Pressable style={s.btn} onPress={handleSignUp} disabled={loading}>
-            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>{loading ? 'Creating Account…' : 'Create Account'}</Text>
+            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>
+              {loading ? 'Creating Account…' : 'Create Account'}
+            </Text>
           </Pressable>
 
           <Pressable onPress={() => navigation.navigate('Login')} style={{ marginTop: 20, alignItems: 'center' }}>
-            <Text style={{ color: '#8E8E93', fontSize: 14 }}>Already have an account? <Text style={{ color: P, fontWeight: '700' }}>Sign In</Text></Text>
+            <Text style={{ color: '#8E8E93', fontSize: 14 }}>
+              Already have an account? <Text style={{ color: P, fontWeight: '700' }}>Sign In</Text>
+            </Text>
+          </Pressable>
+
+          <Pressable onPress={() => navigation.navigate('MainTabs')} style={{ marginTop: 12, alignItems: 'center' }}>
+            <Text style={{ color: '#aaa', fontSize: 13 }}>Continue without account</Text>
           </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -62,5 +75,5 @@ const s = StyleSheet.create({
   title: { fontSize: 30, fontWeight: '800', color: '#1A1A2E', marginBottom: 6 },
   subtitle: { fontSize: 15, color: '#8E8E93', marginBottom: 32 },
   input: { height: 54, borderWidth: 1, borderColor: '#E5E5EA', borderRadius: 14, paddingHorizontal: 16, fontSize: 15, marginBottom: 14, backgroundColor: '#F8F9FA', color: '#1A1A2E' },
-  btn: { height: 54, backgroundColor: '#E91E8C', borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginTop: 6 },
+  btn: { height: 54, backgroundColor: P, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginTop: 6 },
 });
