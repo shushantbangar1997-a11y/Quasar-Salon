@@ -89,9 +89,31 @@ export function BookingsProvider({ children }: { children: ReactNode }) {
         snap => {
           const firestoreBookings: ConfirmedBooking[] = snap.docs.map(doc => {
             const data = doc.data();
+
+            // Backend stores services as flat objects: {id,name,price,durationMins,category,qty}
+            // UI expects CartItem shape: {service:{id,name,price,durationMins,gender}, category:{id,name,icon,services[]}, qty}
+            type FlatService = { id?: string; name?: string; price?: number; durationMins?: number; category?: string; qty?: number };
+            const rawServices = (data.services as FlatService[] | undefined) ?? [];
+            const services: CartItem[] = rawServices.map(s => ({
+              service: {
+                id: s.id ?? '',
+                name: s.name ?? 'Service',
+                price: s.price ?? 0,
+                durationMins: s.durationMins ?? 30,
+                gender: 'Both' as const,
+              },
+              category: {
+                id: s.category ?? '',
+                name: s.category ?? '',
+                icon: '✂️',
+                services: [],
+              },
+              qty: s.qty ?? 1,
+            }));
+
             return {
               id: doc.id,
-              services: (data.services as CartItem[]) ?? [],
+              services,
               date: (data.dateLabel as string) ?? (data.date as string) ?? '',
               time: (data.timeSlot as string) ?? '',
               stylist: (data.stylist as StaffMember | null) ?? null,
