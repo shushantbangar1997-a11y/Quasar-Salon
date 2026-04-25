@@ -157,20 +157,23 @@ export default function BookingScreen({ navigation, route }: BookingScreenProps)
         navigation.navigate('BookingSuccess', { booking });
         return;
       } catch (e: unknown) {
-        setLoading(false);
-        if (e instanceof ApiError && e.status === 409) {
-          setErrorMsg('This time slot was just booked by someone else. Please choose a different time.');
-          setSelectedTime('');
-          setStep('time');
+        // Slot-conflict or other API business-logic errors → show error, stay on confirm
+        if (e instanceof ApiError) {
+          setLoading(false);
+          if (e.status === 409) {
+            setErrorMsg('This time slot was just booked by someone else. Please choose a different time.');
+            setSelectedTime('');
+            setStep('time');
+          } else {
+            setErrorMsg(e.message || 'Something went wrong. Please try again.');
+          }
           return;
         }
-        const message = e instanceof Error ? e.message : 'Something went wrong. Please try again.';
-        setErrorMsg(message);
-        return;
+        // Network-level failure (backend unreachable in dev) → fall through to demo mode
       }
     }
 
-    // Local-only mode (API not configured) — demo / development fallback
+    // Local-only / network-fallback mode — saves to in-memory state for demo/dev
     try {
       await new Promise<void>(r => setTimeout(r, 600));
 

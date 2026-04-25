@@ -2,7 +2,24 @@ import { auth } from './firebase';
 import { StaffMember } from './quasarData';
 import { CartItem } from './CartContext';
 
-export const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || '';
+function resolveApiBaseUrl(): string {
+  const envUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
+  if (envUrl) return envUrl;
+  // In Expo Web (browser), derive the backend URL from the current hostname.
+  // Replit proxies each port at {port}-{base-domain}, so replace the main
+  // domain with the backend port prefix.
+  if (typeof window !== 'undefined' && window.location?.hostname) {
+    const host = window.location.hostname;
+    if (host.endsWith('.replit.dev')) {
+      // Strip any existing port prefix (e.g. "5000-") then add "8080-"
+      const base = host.replace(/^\d+-/, '');
+      return `https://8080-${base}`;
+    }
+  }
+  return '';
+}
+
+export const API_BASE_URL = resolveApiBaseUrl();
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
