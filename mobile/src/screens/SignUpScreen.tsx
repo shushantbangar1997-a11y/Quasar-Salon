@@ -38,7 +38,7 @@ export default function SignUpScreen({ navigation }: SignUpScreenProps) {
           </Pressable>
 
           <View style={s.logoArea}>
-            <Image source={require('../../assets/quasar-logo.jpg')} style={s.logo} resizeMode="contain" />
+            <Image source={require('../../assets/quasar-logo-new.png')} style={s.logo} resizeMode="contain" />
           </View>
 
           <Text style={s.title}>Create Account</Text>
@@ -74,7 +74,7 @@ const s = StyleSheet.create({
   backRow: { alignSelf: 'flex-start', marginBottom: 16 },
   back: { color: COLORS.primary, fontSize: 15, fontWeight: '600' },
   logoArea: { alignItems: 'center', marginBottom: 20 },
-  logo: { width: 150, height: 44 },
+  logo: { width: 110, height: 110 },
   title: { fontSize: 28, fontWeight: '800', color: COLORS.text, marginBottom: 6 },
   subtitle: { fontSize: 14, color: COLORS.textSecondary, marginBottom: 28 },
   input: { height: 54, borderWidth: 1, borderColor: COLORS.border, borderRadius: RADIUS.lg, paddingHorizontal: 16, fontSize: 15, marginBottom: 14, backgroundColor: COLORS.bgCard, color: COLORS.text },

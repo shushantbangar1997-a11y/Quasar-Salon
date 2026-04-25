@@ -3,11 +3,11 @@ import {
   View, Text, ScrollView, Pressable, StyleSheet,
   SafeAreaView, StatusBar, Image,
 } from 'react-native';
+
 import { QUASAR_CATEGORIES } from '../quasarData';
 import { useCart } from '../CartContext';
 import { COLORS, RADIUS } from '../theme';
 import { HomeScreenProps } from '../navigation';
-import QuasarLogoSvg from '../components/QuasarLogoSvg';
 
 const POPULAR = [
   { catId: 'hair-care', svcId: 'hc-8', label: "Men's Haircut", price: 599 },
@@ -29,11 +29,12 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         {/* Header */}
         <View style={s.header}>
           <View style={s.logoRow}>
-            <QuasarLogoSvg width={44} height={58} color={COLORS.primary} showText={false} />
-            <View style={s.logoTextWrap}>
-              <Text style={s.logoName}>QUASAR</Text>
-              <Text style={s.logoTagline}>Luxury Salon</Text>
-            </View>
+            <Image
+              source={require('../../assets/quasar-logo-new.png')}
+              style={s.topLogo}
+              resizeMode="contain"
+            />
+            <Text style={s.logoTagline}>Luxury Salon</Text>
           </View>
           <Pressable style={s.profileBtn} onPress={() => navigation.navigate('Profile')}>
             <Text style={{ fontSize: 20 }}>👤</Text>
@@ -116,10 +117,9 @@ const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.bg },
   scroll: { flex: 1 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
-  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  logoTextWrap: { justifyContent: 'center' },
-  logoName: { fontSize: 18, fontWeight: '800', color: COLORS.primary, letterSpacing: 3 },
-  logoTagline: { fontSize: 10, color: COLORS.textMuted, letterSpacing: 1.5, textTransform: 'uppercase' },
+  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  topLogo: { width: 48, height: 48 },
+  logoTagline: { fontSize: 11, color: COLORS.textMuted, letterSpacing: 1.5, textTransform: 'uppercase', fontWeight: '600' },
   profileBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: COLORS.bgElevated, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.border },
   hero: { marginHorizontal: 20, marginTop: 8, marginBottom: 8, backgroundColor: COLORS.bgCard, borderRadius: RADIUS.xl, padding: 24, borderWidth: 1, borderColor: COLORS.primaryDim },
   heroTitle: { fontSize: 26, fontWeight: '800', color: COLORS.text, lineHeight: 34 },

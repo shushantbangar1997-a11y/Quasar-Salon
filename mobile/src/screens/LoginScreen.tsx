@@ -39,7 +39,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
           </Pressable>
 
           <View style={s.logoArea}>
-            <Image source={require('../../assets/quasar-logo.jpg')} style={s.logo} resizeMode="contain" />
+            <Image source={require('../../assets/quasar-logo-new.png')} style={s.logo} resizeMode="contain" />
             <Text style={s.tagline}>Sign in to save your bookings</Text>
           </View>
 
@@ -93,7 +93,7 @@ const s = StyleSheet.create({
   backRow: { alignSelf: 'flex-start', marginBottom: 20 },
   back: { color: COLORS.primary, fontSize: 15, fontWeight: '600' },
   logoArea: { alignItems: 'center', marginBottom: 36 },
-  logo: { width: 180, height: 54, marginBottom: 12 },
+  logo: { width: 120, height: 120, marginBottom: 12 },
   tagline: { fontSize: 14, color: COLORS.textSecondary },
   input: { height: 54, borderWidth: 1, borderColor: COLORS.border, borderRadius: RADIUS.lg, paddingHorizontal: 16, fontSize: 15, marginBottom: 14, backgroundColor: COLORS.bgCard, color: COLORS.text },
   primaryBtn: { height: 54, backgroundColor: COLORS.primary, borderRadius: RADIUS.lg, alignItems: 'center', justifyContent: 'center', marginTop: 4 },

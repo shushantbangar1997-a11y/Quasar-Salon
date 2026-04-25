@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, ScrollView, Pressable, StyleSheet,
-  SafeAreaView, StatusBar, TextInput, ActivityIndicator, Switch,
+  SafeAreaView, StatusBar, TextInput, ActivityIndicator, Switch, Image,
 } from 'react-native';
 import { useAdmin } from '../AdminContext';
 import { useBookings, ConfirmedBooking } from '../BookingsContext';
@@ -55,7 +55,11 @@ function LoginPanel({ onLogin }: { onLogin: (pw: string) => boolean }) {
   return (
     <View style={s.loginWrap}>
       <View style={s.loginCard}>
-        <Text style={s.loginIcon}>🔐</Text>
+        <Image
+          source={require('../../assets/quasar-logo-new.png')}
+          style={s.loginLogo}
+          resizeMode="contain"
+        />
         <Text style={s.loginTitle}>Admin Portal</Text>
         <Text style={s.loginSub}>Enter the admin password to continue</Text>
 
@@ -592,7 +596,7 @@ const s = StyleSheet.create({
     padding: 32, width: '100%', maxWidth: 380,
     borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', ...SHADOW.card,
   },
-  loginIcon: { fontSize: 48, marginBottom: 16 },
+  loginLogo: { width: 130, height: 130, marginBottom: 8 },
   loginTitle: { fontSize: 24, fontWeight: '800', color: COLORS.text },
   loginSub: { fontSize: 14, color: COLORS.textMuted, marginTop: 6, textAlign: 'center', marginBottom: 20 },
   loginError: { backgroundColor: COLORS.errorBg, color: COLORS.error, fontSize: 13, padding: 10, borderRadius: RADIUS.md, marginBottom: 12, width: '100%', textAlign: 'center' },
