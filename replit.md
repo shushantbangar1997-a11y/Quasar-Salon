@@ -53,40 +53,43 @@ mobile/
 - Workflow `Start application` runs `cd mobile && npx expo start --web --port 5000 --host lan` and serves the web build on port `5000`.
 - Frontend binds host through Expo Web (Metro dev server) which accepts proxied requests, so it works inside the Replit preview iframe.
 
-## Mobile app environment variables
+## Backend deployment (Replit)
 
-The Expo client reads its config from `EXPO_PUBLIC_*` env vars (loaded automatically by Expo at build time):
+The backend runs as a standalone Express server in a `Start Backend` Replit workflow:
+- Command: `cd backend && PORT=8080 node functions/lib/server.js`
+- Port: 8080
+- Entry point: `backend/functions/src/server.ts` (compiled to `lib/server.js`)
+
+The backend uses Firebase Admin SDK with service account credentials from `FIREBASE_SERVICE_ACCOUNT`.
+
+Firebase project: **quasar-salon**
+- `.firebaserc` updated to reference `quasar-salon`
+- Firestore security rules deployed (allow authenticated users to read/write their own bookings)
+- 8 staff members seeded via `backend/scripts/seedStaff.js`
+
+## Environment variables (all set in shared environment)
 
 - `EXPO_PUBLIC_FIREBASE_API_KEY`
-- `EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN`
-- `EXPO_PUBLIC_FIREBASE_PROJECT_ID`
+- `EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN` — `quasar-salon.firebaseapp.com`
+- `EXPO_PUBLIC_FIREBASE_PROJECT_ID` — `quasar-salon`
 - `EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET`
 - `EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
 - `EXPO_PUBLIC_FIREBASE_APP_ID`
-- `EXPO_PUBLIC_API_BASE_URL` — Railway backend URL once deployed.
+- `EXPO_PUBLIC_API_BASE_URL` — Replit backend URL (port 8080 dev domain)
+- `FIREBASE_SERVICE_ACCOUNT` — full JSON of Firebase Admin SDK service account key
 
-## Backend environment variables (Railway)
+## Live booking flow
 
-- `FIREBASE_SERVICE_ACCOUNT` — full JSON contents of the Firebase service account key.
-- `PORT` — set automatically by Railway; the server listens on this port.
+1. `BookingScreen` fetches staff from `GET /staff` (live Firestore data)
+2. `BookingScreen` checks availability via `GET /staff/:id/availability?date=&duration=`
+3. On confirm, `POST /bookings` runs a Firestore transaction: blocks all slots + creates booking doc
+4. `BookingsContext` uses `onSnapshot` on `bookings` collection for real-time updates in My Bookings
 
-## Railway deployment (two services)
+## Staff & Availability
 
-### Service 1 — API backend (`backend/`)
-- Set **Root Directory** to `backend` in Railway.
-- `railway.json` builds and starts the Express server from `backend/functions/`.
-- Add env var: `FIREBASE_SERVICE_ACCOUNT`.
-
-### Service 2 — Web frontend (`mobile/`)
-- Set **Root Directory** to `mobile` in Railway.
-- `railway.json` builds the Expo web bundle and serves it as a static site.
-- Add env vars: all `EXPO_PUBLIC_*` variables listed above.
-
-## Staff & Availability (current state)
-
-- 8 demo staff profiles in `quasarData.ts` with names, roles, specialties, weekly schedules
-- `DEMO_BUSY_SLOTS` in `quasarData.ts` simulates pre-booked time slots per staff member
-- Task #2 will wire this to real Firestore data with live slot blocking
+- 8 staff profiles in Firestore `staff` collection (seeded by `backend/scripts/seedStaff.js`)
+- Blocked slots stored in Firestore `blocked_slots` collection keyed by `staffId__date__slot`
+- Slot availability is determined by schedule + blocked_slots; booking transaction is atomic
 
 ## Metro pinned package
 
