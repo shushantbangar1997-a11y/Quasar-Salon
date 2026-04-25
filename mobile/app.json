@@ -4,6 +4,7 @@
     "slug": "quasar-salon",
     "version": "1.0.0",
     "sdkVersion": "54.0.0",
+    "newArchEnabled": false,
     "platforms": [
       "ios",
       "android",
