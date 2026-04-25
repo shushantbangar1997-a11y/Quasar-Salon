@@ -61,9 +61,13 @@ export interface SlotAvailability {
   slots: string[];
 }
 
-/** Fetch available time slots for a single staff member on a date (YYYY-MM-DD). */
-export async function fetchStaffSlots(staffId: string, date: string): Promise<SlotAvailability> {
-  const data = await apiGet(`/staff/${staffId}/slots?date=${date}`);
+/**
+ * Fetch available start slots for a single staff member on a date (YYYY-MM-DD).
+ * Pass `duration` (minutes) to get only slots with enough consecutive windows.
+ */
+export async function fetchStaffSlots(staffId: string, date: string, duration?: number): Promise<SlotAvailability> {
+  const durationParam = duration ? `&duration=${duration}` : '';
+  const data = await apiGet(`/staff/${staffId}/availability?date=${date}${durationParam}`);
   return data as SlotAvailability;
 }
 

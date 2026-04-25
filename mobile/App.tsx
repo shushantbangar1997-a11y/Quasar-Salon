@@ -8,6 +8,7 @@ import { auth } from './src/firebase';
 import { CartProvider } from './src/CartContext';
 import { BookingsProvider } from './src/BookingsContext';
 import { COLORS } from './src/theme';
+import { RootStackParamList, TabParamList } from './src/navigation';
 
 import HomeScreen from './src/screens/HomeScreen';
 import SearchScreen from './src/screens/SearchScreen';
@@ -20,8 +21,8 @@ import BookingSuccessScreen from './src/screens/BookingSuccessScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import SignUpScreen from './src/screens/SignUpScreen';
 
-const Stack = createNativeStackNavigator();
-const Tab = createBottomTabNavigator();
+const Stack = createNativeStackNavigator<RootStackParamList>();
+const Tab = createBottomTabNavigator<TabParamList>();
 
 const TAB_ICONS: Record<string, string> = {
   Home: '🏠',

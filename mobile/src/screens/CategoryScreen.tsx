@@ -50,7 +50,7 @@ export default function CategoryScreen({ route, navigation }: CategoryScreenProp
         {(['All', 'Women', 'Men'] as const).map(f => (
           <Pressable
             key={f}
-            onPress={() => setFilter(f === 'Both' ? 'Both' : f)}
+            onPress={() => setFilter(f)}
             style={[s.filterChip, filter === f && s.filterChipActive]}
           >
             <Text style={[s.filterText, filter === f && s.filterTextActive]}>{f}</Text>

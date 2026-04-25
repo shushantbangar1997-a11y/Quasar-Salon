@@ -44,6 +44,7 @@ export default function BookingScreen({ navigation }: BookingScreenProps) {
   const [slotsLoading, setSlotsLoading] = useState(false);
 
   const apiAvailable = Boolean(API_BASE_URL);
+  const totalDuration = items.reduce((sum, item) => sum + item.service.durationMins * item.qty, 0);
 
   /** Load staff list from API on mount (if available) */
   useEffect(() => {
@@ -55,13 +56,13 @@ export default function BookingScreen({ navigation }: BookingScreenProps) {
       .finally(() => setStaffLoading(false));
   }, [apiAvailable]);
 
-  /** Fetch slots for ALL staff when advancing to time step */
+  /** Fetch slots for ALL staff when advancing to time step, honoring total service duration */
   const fetchSlotsForDate = useCallback(async (dateIso: string) => {
     if (!apiAvailable) return;
     setSlotsLoading(true);
     try {
       const results = await Promise.allSettled(
-        staffList.map(st => fetchStaffSlots(st.id, dateIso))
+        staffList.map(st => fetchStaffSlots(st.id, dateIso, totalDuration || undefined))
       );
       const map: Record<string, string[]> = {};
       results.forEach((r, i) => {
@@ -75,7 +76,7 @@ export default function BookingScreen({ navigation }: BookingScreenProps) {
     } finally {
       setSlotsLoading(false);
     }
-  }, [apiAvailable, staffList]);
+  }, [apiAvailable, staffList, totalDuration]);
 
   const advanceToTime = () => {
     fetchSlotsForDate(selectedDate.iso);
@@ -104,6 +105,18 @@ export default function BookingScreen({ navigation }: BookingScreenProps) {
 
     if (apiAvailable) {
       try {
+        // Re-check slot is still available (duration-aware) before submitting
+        const freshAvailability = await fetchStaffSlots(selectedStylist!.id, selectedDate.iso, totalDuration || undefined);
+        if (!freshAvailability.slots.includes(selectedTime)) {
+          setLoading(false);
+          Alert.alert(
+            'Slot No Longer Available',
+            'This time slot was just taken. Please choose a different time.',
+            [{ text: 'Choose Another Time', onPress: () => { setSelectedTime(''); setStep('time'); } }]
+          );
+          return;
+        }
+
         const payload = buildQuasarBookingPayload(
           items,
           selectedStylist!.id,

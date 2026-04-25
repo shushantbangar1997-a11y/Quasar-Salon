@@ -309,36 +309,46 @@ app.get('/staff', async (_req, res) => {
   }
 });
 
-/** GET /staff/:id/slots?date=YYYY-MM-DD — get available time slots for a staff member (public) */
-app.get('/staff/:id/slots', async (req, res) => {
+/**
+ * Shared handler for GET /staff/:id/slots and GET /staff/:id/availability.
+ * Supports ?date=YYYY-MM-DD&duration=<minutes>
+ * Returns start slots where there are enough consecutive unblocked 30-min windows to cover `duration`.
+ */
+async function getStaffAvailabilityHandler(req: express.Request, res: express.Response): Promise<void> {
   const staffId = req.params.id;
   const dateStr = req.query.date as string;
 
   if (!isNonEmptyString(dateStr) || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-    return void badRequest(res, 'date query param required in YYYY-MM-DD format');
+    badRequest(res, 'date query param required in YYYY-MM-DD format');
+    return;
   }
+
+  const rawDuration = asNumber(req.query.duration) ?? 30;
+  const slotsNeeded = Math.max(1, Math.ceil(rawDuration / 30));
 
   try {
     const staffDoc = await db.collection('staff').doc(staffId).get();
-    if (!staffDoc.exists) return void res.status(404).json({ error: 'Staff member not found' });
+    if (!staffDoc.exists) { res.status(404).json({ error: 'Staff member not found' }); return; }
 
     const staff = staffDoc.data() as QuasarStaff;
-    if (!staff.available) return void res.status(200).json({ staffId, date: dateStr, slots: [] });
+    if (!staff.available) { res.status(200).json({ staffId, date: dateStr, duration: rawDuration, slots: [] }); return; }
 
     const dayName = getDayName(dateStr);
     const daySchedule = staff.schedule?.[dayName];
 
     if (!daySchedule) {
-      return void res.status(200).json({ staffId, date: dateStr, slots: [] });
+      res.status(200).json({ staffId, date: dateStr, duration: rawDuration, slots: [] });
+      return;
     }
 
-    const scheduleStart = daySchedule.start;
-    const scheduleEnd = daySchedule.end;
+    const { start: scheduleStart, end: scheduleEnd } = daySchedule;
 
-    const slotsInSchedule = QUASAR_TIME_SLOTS.filter(slot => {
-      const slot24 = slotTo24h(slot);
-      return slot24 >= scheduleStart && slot24 < scheduleEnd;
-    });
+    const slotsInSchedule = new Set(
+      QUASAR_TIME_SLOTS.filter(s => {
+        const s24 = slotTo24h(s);
+        return s24 >= scheduleStart && s24 < scheduleEnd;
+      })
+    );
 
     const blockedSnap = await db.collection('blocked_slots')
       .where('staffId', '==', staffId)
@@ -347,14 +357,31 @@ app.get('/staff/:id/slots', async (req, res) => {
 
     const blockedSlotSet = new Set(blockedSnap.docs.map(d => d.data().timeSlot as string));
 
-    const availableSlots = slotsInSchedule.filter(s => !blockedSlotSet.has(s));
+    /** A start slot is available only if all slotsNeeded consecutive 30-min windows are within schedule + unblocked */
+    const availableSlots = QUASAR_TIME_SLOTS.filter(startSlot => {
+      if (!slotsInSchedule.has(startSlot)) return false;
+      const startIdx = QUASAR_TIME_SLOTS.indexOf(startSlot);
+      for (let i = 0; i < slotsNeeded; i++) {
+        const checkSlot = QUASAR_TIME_SLOTS[startIdx + i];
+        if (!checkSlot) return false;
+        if (!slotsInSchedule.has(checkSlot)) return false;
+        if (blockedSlotSet.has(checkSlot)) return false;
+      }
+      return true;
+    });
 
-    res.status(200).json({ staffId, date: dateStr, slots: availableSlots });
+    res.status(200).json({ staffId, date: dateStr, duration: rawDuration, slots: availableSlots });
   } catch (err) {
     console.error('GET /staff/:id/slots error:', err);
     res.status(500).json({ error: 'Failed to get slots' });
   }
-});
+}
+
+/** GET /staff/:id/slots?date=YYYY-MM-DD[&duration=<minutes>] */
+app.get('/staff/:id/slots', getStaffAvailabilityHandler);
+
+/** GET /staff/:id/availability?date=YYYY-MM-DD[&duration=<minutes>] (preferred contract) */
+app.get('/staff/:id/availability', getStaffAvailabilityHandler);
 
 /** ──── Bookings ──── */
 
@@ -383,24 +410,40 @@ app.post('/bookings', authenticateUser, async (req, res) => {
     const staffDoc = await db.collection('staff').doc(staffId).get();
     if (!staffDoc.exists) return void badRequest(res, 'Staff member not found');
 
-    const blockedId = blockedSlotDocId(staffId, dateStr, timeSlot);
-    const blockedRef = db.collection('blocked_slots').doc(blockedId);
+    // Determine how many 30-min slots the booking spans based on total service duration
+    const totalDuration = quasarBody.services.reduce((sum, s) => sum + (s.durationMins ?? 30), 0);
+    const slotsNeeded = Math.max(1, Math.ceil(totalDuration / 30));
+
+    const startIdx = QUASAR_TIME_SLOTS.indexOf(timeSlot);
+    if (startIdx === -1) return void badRequest(res, 'Invalid time slot');
+    if (startIdx + slotsNeeded > QUASAR_TIME_SLOTS.length) {
+      return void badRequest(res, 'Booking would extend past closing time. Please choose an earlier slot.');
+    }
+
+    const slotsToBlock = QUASAR_TIME_SLOTS.slice(startIdx, startIdx + slotsNeeded);
+    const blockedRefs = slotsToBlock.map(slot =>
+      db.collection('blocked_slots').doc(blockedSlotDocId(staffId, dateStr, slot))
+    );
     const bookingRef = db.collection('bookings').doc();
 
     try {
       await db.runTransaction(async tx => {
-        const blockedSnap = await tx.get(blockedRef);
-        if (blockedSnap.exists) {
-          throw Object.assign(new Error('SLOT_TAKEN'), { code: 409 });
+        // Check all consecutive slots are unblocked
+        const snapshots = await Promise.all(blockedRefs.map(r => tx.get(r)));
+        for (const snap of snapshots) {
+          if (snap.exists) throw Object.assign(new Error('SLOT_TAKEN'), { code: 409 });
         }
 
-        tx.set(blockedRef, {
-          staffId,
-          date: dateStr,
-          timeSlot,
-          bookingId: bookingRef.id,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
+        // Block all consecutive slots
+        for (let i = 0; i < slotsToBlock.length; i++) {
+          tx.set(blockedRefs[i], {
+            staffId,
+            date: dateStr,
+            timeSlot: slotsToBlock[i],
+            bookingId: bookingRef.id,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+        }
 
         tx.set(bookingRef, {
           userId: uid,
@@ -410,6 +453,8 @@ app.post('/bookings', authenticateUser, async (req, res) => {
           dateLabel: quasarBody.dateLabel.trim(),
           services: quasarBody.services,
           total,
+          totalDuration,
+          slotsBlocked: slotsToBlock,
           status: 'pending',
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -420,7 +465,7 @@ app.post('/bookings', authenticateUser, async (req, res) => {
       res.status(201).json({ id: created.id, ...created.data() });
     } catch (err: unknown) {
       if (err instanceof Error && err.message === 'SLOT_TAKEN') {
-        return void res.status(409).json({ error: 'This time slot is no longer available. Please choose another.' });
+        return void res.status(409).json({ error: 'One or more time slots in your booking window are no longer available. Please choose another time.' });
       }
       console.error('POST /bookings (quasar) transaction error:', err);
       res.status(500).json({ error: 'Failed to create booking' });

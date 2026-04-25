@@ -5,7 +5,7 @@ import { auth } from '../firebase';
 import { COLORS, RADIUS } from '../theme';
 import { ProfileScreenProps } from '../navigation';
 
-const MENU_ITEMS = [
+const MENU_ITEMS: { icon: string; label: string; screen: 'Bookings' | null; isToggle?: boolean }[] = [
   { icon: '📅', label: 'My Bookings', screen: 'Bookings' },
   { icon: '💳', label: 'Payment Methods', screen: null },
   { icon: '🔔', label: 'Notifications', screen: null, isToggle: true },
