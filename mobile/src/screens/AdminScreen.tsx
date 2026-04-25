@@ -56,7 +56,7 @@ function LoginPanel({ onLogin }: { onLogin: (pw: string) => boolean }) {
     <View style={s.loginWrap}>
       <View style={s.loginCard}>
         <Image
-          source={require('../../assets/quasar-logo-new.png')}
+          source={require('../../assets/quasar-logo-transparent.png')}
           style={s.loginLogo}
           resizeMode="contain"
         />
