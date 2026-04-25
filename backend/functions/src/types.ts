@@ -1,5 +1,5 @@
 /**
- * Shared types for the BeautyBooking backend.
+ * Shared types for the BeautyBooking / Quasar Salon backend.
  *
  * Keep this file purely type/interface definitions (no runtime code).
  * Express Request augmentation lives in `express.d.ts`.
@@ -20,7 +20,7 @@ export interface RatingSummary {
 
 export interface Service {
   name: string;
-  price: number;        // numeric currency amount (e.g. GBP)
+  price: number;        // numeric currency amount
   category: string;     // e.g. "Hair", "Nails"
   durationMins: number; // e.g. 30
 }
@@ -79,6 +79,49 @@ export interface Booking {
   updatedAt?: unknown;
 }
 
+/** Quasar Salon — Staff & Booking types */
+
+export interface DaySchedule {
+  start: string; // "09:00"
+  end: string;   // "20:00"
+}
+
+export interface QuasarStaff {
+  id: string;
+  name: string;
+  role: string;
+  emoji: string;
+  specialties: string[];
+  experience: string;
+  available: boolean;
+  schedule: {
+    [day: string]: DaySchedule | null;
+  };
+}
+
+export interface QuasarServiceItem {
+  id: string;
+  name: string;
+  price: number;
+  durationMins: number;
+  category: string;
+  qty: number;
+}
+
+export interface QuasarBooking {
+  id: string;
+  userId: string;
+  staffId: string;
+  timeSlot: string;
+  date: string;        // ISO: YYYY-MM-DD
+  dateLabel: string;   // Human-readable: "Mon, Apr 28"
+  services: QuasarServiceItem[];
+  total: number;
+  status: BookingStatus;
+  createdAt?: unknown;
+  updatedAt?: unknown;
+}
+
 /** Requests */
 
 export interface CreateUserRequest {
@@ -108,6 +151,15 @@ export interface CreateBookingRequest {
   service: Service;
   date: string; // ISO string
   notes?: string;
+}
+
+export interface CreateQuasarBookingRequest {
+  staffId: string;
+  timeSlot: string;
+  date: string;
+  dateLabel: string;
+  services: QuasarServiceItem[];
+  total: number;
 }
 
 export interface UpdateBookingStatusRequest {

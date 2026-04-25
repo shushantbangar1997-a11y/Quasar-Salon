@@ -21,11 +21,23 @@ service cloud.firestore {
       allow create, update, delete: if isOwner(providerId);
     }
 
-    // Bookings: only booking user or provider can read/write.
+    // Quasar Salon staff profiles — public read, server-only write
+    match /staff/{staffId} {
+      allow read: if true;
+      allow write: if false; // Only the backend (Admin SDK) writes staff
+    }
+
+    // Blocked slots — public read for availability display, server-only write
+    match /blocked_slots/{slotId} {
+      allow read: if true;
+      allow write: if false; // Only written atomically by the backend booking transaction
+    }
+
+    // Bookings: only the booking user can read/write their own bookings
     match /bookings/{bookingId} {
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow read, update, delete: if isSignedIn()
-        && (resource.data.userId == request.auth.uid || resource.data.providerId == request.auth.uid);
+      allow read, update: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow delete: if false;
     }
 
     // Default deny

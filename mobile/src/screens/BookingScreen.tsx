@@ -1,13 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, ScrollView, Pressable, StyleSheet,
-  SafeAreaView, StatusBar,
+  SafeAreaView, StatusBar, ActivityIndicator, Alert,
 } from 'react-native';
 import { useCart } from '../CartContext';
 import { useBookings } from '../BookingsContext';
 import { QUASAR_STAFF, TIME_SLOTS, DEMO_BUSY_SLOTS, StaffMember } from '../quasarData';
 import { COLORS, RADIUS } from '../theme';
 import { BookingScreenProps } from '../navigation';
+import {
+  API_BASE_URL,
+  ApiError,
+  fetchAllStaff,
+  fetchStaffSlots,
+  createQuasarBooking,
+  buildQuasarBookingPayload,
+} from '../api';
 
 const DATES = Array.from({ length: 14 }, (_, i) => {
   const d = new Date();
@@ -23,22 +31,119 @@ type Step = 'date' | 'time' | 'stylist' | 'confirm';
 export default function BookingScreen({ navigation }: BookingScreenProps) {
   const { items, totalPrice, clearCart } = useCart();
   const { addBooking } = useBookings();
+
   const [step, setStep] = useState<Step>('date');
   const [selectedDate, setSelectedDate] = useState(DATES[0]);
   const [selectedTime, setSelectedTime] = useState('');
   const [selectedStylist, setSelectedStylist] = useState<StaffMember | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const availableStaff = QUASAR_STAFF.filter(staff => {
+  const [staffList, setStaffList] = useState<StaffMember[]>(QUASAR_STAFF);
+  const [staffLoading, setStaffLoading] = useState(false);
+  const [slotMap, setSlotMap] = useState<Record<string, string[]>>({});
+  const [slotsLoading, setSlotsLoading] = useState(false);
+
+  const apiAvailable = Boolean(API_BASE_URL);
+
+  /** Load staff list from API on mount (if available) */
+  useEffect(() => {
+    if (!apiAvailable) return;
+    setStaffLoading(true);
+    fetchAllStaff()
+      .then(data => setStaffList(data.length > 0 ? data : QUASAR_STAFF))
+      .catch(() => setStaffList(QUASAR_STAFF))
+      .finally(() => setStaffLoading(false));
+  }, [apiAvailable]);
+
+  /** Fetch slots for ALL staff when advancing to time step */
+  const fetchSlotsForDate = useCallback(async (dateIso: string) => {
+    if (!apiAvailable) return;
+    setSlotsLoading(true);
+    try {
+      const results = await Promise.allSettled(
+        staffList.map(st => fetchStaffSlots(st.id, dateIso))
+      );
+      const map: Record<string, string[]> = {};
+      results.forEach((r, i) => {
+        if (r.status === 'fulfilled') {
+          map[staffList[i].id] = r.value.slots;
+        }
+      });
+      setSlotMap(map);
+    } catch {
+      setSlotMap({});
+    } finally {
+      setSlotsLoading(false);
+    }
+  }, [apiAvailable, staffList]);
+
+  const advanceToTime = () => {
+    fetchSlotsForDate(selectedDate.iso);
+    setStep('time');
+  };
+
+  /** Check if a staff member is available at a given time */
+  const isStaffAvailableAtTime = (staff: StaffMember, time: string): boolean => {
+    if (!staff.available) return false;
+    if (slotMap[staff.id]) {
+      return slotMap[staff.id].includes(time);
+    }
+    const busy = DEMO_BUSY_SLOTS[staff.id] || [];
+    return !busy.includes(time);
+  };
+
+  const availableStaff = staffList.filter(staff => {
     if (!staff.available) return false;
     if (!selectedTime) return true;
-    const busy = DEMO_BUSY_SLOTS[staff.id] || [];
-    return !busy.includes(selectedTime);
+    return isStaffAvailableAtTime(staff, selectedTime);
   });
 
+  /** Confirm booking — try API, fall back to local state */
   const handleConfirm = async () => {
     setLoading(true);
-    await new Promise(r => setTimeout(r, 800));
+
+    if (apiAvailable) {
+      try {
+        const payload = buildQuasarBookingPayload(
+          items,
+          selectedStylist!.id,
+          selectedTime,
+          selectedDate.iso,
+          selectedDate.label,
+          totalPrice
+        );
+        const result = await createQuasarBooking(payload);
+
+        const booking = {
+          id: result.id,
+          services: items,
+          date: selectedDate.label,
+          time: selectedTime,
+          stylist: selectedStylist,
+          total: totalPrice,
+          status: 'pending' as const,
+          createdAt: Date.now(),
+        };
+
+        clearCart();
+        setLoading(false);
+        navigation.navigate('BookingSuccess', { booking });
+        return;
+      } catch (e: unknown) {
+        if (e instanceof ApiError && e.status === 409) {
+          setLoading(false);
+          Alert.alert(
+            'Slot Unavailable',
+            'This time slot was just booked by someone else. Please choose a different time.',
+            [{ text: 'Choose Another Time', onPress: () => { setSelectedTime(''); setStep('time'); } }]
+          );
+          return;
+        }
+        console.warn('[BookingScreen] API booking failed, using local fallback:', e instanceof Error ? e.message : e);
+      }
+    }
+
+    await new Promise<void>(r => setTimeout(r, 600));
     const booking = addBooking({
       services: items,
       date: selectedDate.label,
@@ -75,6 +180,7 @@ export default function BookingScreen({ navigation }: BookingScreenProps) {
           <Text style={s.back}>←</Text>
         </Pressable>
         <Text style={s.headerTitle}>Book Appointment</Text>
+        {staffLoading && <ActivityIndicator size="small" color={COLORS.primary} style={{ marginLeft: 8 }} />}
       </View>
 
       <View style={s.stepRow}>
@@ -135,29 +241,34 @@ export default function BookingScreen({ navigation }: BookingScreenProps) {
           <View>
             <Text style={s.stepTitle}>Select a Time Slot</Text>
             <Text style={s.stepSub}>{selectedDate.label}</Text>
-            <View style={s.timeGrid}>
-              {TIME_SLOTS.map(t => {
-                const active = selectedTime === t;
-                const freeCount = QUASAR_STAFF.filter(st => {
-                  if (!st.available) return false;
-                  return !(DEMO_BUSY_SLOTS[st.id] || []).includes(t);
-                }).length;
-                const noAvail = freeCount === 0;
-                return (
-                  <Pressable
-                    key={t}
-                    onPress={() => !noAvail && setSelectedTime(t)}
-                    disabled={noAvail}
-                    style={[s.timeChip, active && s.timeChipActive, noAvail && s.timeChipUnavail]}
-                  >
-                    <Text style={[s.timeText, active && s.timeTextActive, noAvail && s.timeTextDim]}>{t}</Text>
-                    <Text style={[s.timeAvail, active && { color: COLORS.bg }, noAvail && s.timeTextDim]}>
-                      {noAvail ? 'Full' : `${freeCount} free`}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
+
+            {slotsLoading ? (
+              <View style={s.loadingBox}>
+                <ActivityIndicator size="large" color={COLORS.primary} />
+                <Text style={s.loadingText}>Checking live availability…</Text>
+              </View>
+            ) : (
+              <View style={s.timeGrid}>
+                {TIME_SLOTS.map(t => {
+                  const active = selectedTime === t;
+                  const freeCount = staffList.filter(st => isStaffAvailableAtTime(st, t)).length;
+                  const noAvail = freeCount === 0;
+                  return (
+                    <Pressable
+                      key={t}
+                      onPress={() => !noAvail && setSelectedTime(t)}
+                      disabled={noAvail}
+                      style={[s.timeChip, active && s.timeChipActive, noAvail && s.timeChipUnavail]}
+                    >
+                      <Text style={[s.timeText, active && s.timeTextActive, noAvail && s.timeTextDim]}>{t}</Text>
+                      <Text style={[s.timeAvail, active && { color: COLORS.bg }, noAvail && s.timeTextDim]}>
+                        {noAvail ? 'Full' : `${freeCount} free`}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
           </View>
         )}
 
@@ -166,10 +277,11 @@ export default function BookingScreen({ navigation }: BookingScreenProps) {
             <Text style={s.stepTitle}>Choose Your Stylist</Text>
             <Text style={s.stepSub}>
               Available on {selectedDate.label} at {selectedTime}
-              {' '}({availableStaff.length} stylists free)
+              {' '}({availableStaff.length} stylist{availableStaff.length !== 1 ? 's' : ''} free)
+              {apiAvailable && <Text style={{ color: COLORS.primary }}> · Live</Text>}
             </Text>
-            {QUASAR_STAFF.map(staff => {
-              const isBusy = (DEMO_BUSY_SLOTS[staff.id] || []).includes(selectedTime) || !staff.available;
+            {staffList.map(staff => {
+              const isBusy = !isStaffAvailableAtTime(staff, selectedTime);
               const active = selectedStylist?.id === staff.id;
               return (
                 <Pressable
@@ -207,6 +319,11 @@ export default function BookingScreen({ navigation }: BookingScreenProps) {
         {step === 'confirm' && (
           <View>
             <Text style={s.stepTitle}>Booking Summary</Text>
+            {apiAvailable && (
+              <View style={s.liveNotice}>
+                <Text style={s.liveNoticeText}>🔒 Your slot will be locked in real time on confirmation</Text>
+              </View>
+            )}
             <View style={s.summaryBox}>
               <SumRow label="Date" value={selectedDate.label} />
               <SumRow label="Time" value={selectedTime} />
@@ -232,14 +349,14 @@ export default function BookingScreen({ navigation }: BookingScreenProps) {
 
       <View style={s.cta}>
         {step === 'date' && (
-          <Pressable style={s.ctaBtn} onPress={() => setStep('time')}>
+          <Pressable style={s.ctaBtn} onPress={advanceToTime}>
             <Text style={s.ctaBtnText}>Continue to Time →</Text>
           </Pressable>
         )}
         {step === 'time' && (
           <Pressable
-            style={[s.ctaBtn, !selectedTime && s.ctaBtnDisabled]}
-            disabled={!selectedTime}
+            style={[s.ctaBtn, (!selectedTime || slotsLoading) && s.ctaBtnDisabled]}
+            disabled={!selectedTime || slotsLoading}
             onPress={() => setStep('stylist')}
           >
             <Text style={s.ctaBtnText}>Choose Stylist →</Text>
@@ -256,9 +373,14 @@ export default function BookingScreen({ navigation }: BookingScreenProps) {
         )}
         {step === 'confirm' && (
           <Pressable style={[s.ctaBtn, loading && { opacity: 0.7 }]} disabled={loading} onPress={handleConfirm}>
-            <Text style={s.ctaBtnText}>
-              {loading ? 'Confirming…' : `Confirm & Book · ₹${totalPrice.toLocaleString('en-IN')}`}
-            </Text>
+            {loading ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <ActivityIndicator size="small" color={COLORS.bg} />
+                <Text style={s.ctaBtnText}>Confirming…</Text>
+              </View>
+            ) : (
+              <Text style={s.ctaBtnText}>{`Confirm & Book · ₹${totalPrice.toLocaleString('en-IN')}`}</Text>
+            )}
           </Pressable>
         )}
       </View>
@@ -279,7 +401,7 @@ const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.bg },
   header: { flexDirection: 'row', alignItems: 'center', padding: 20, backgroundColor: COLORS.bgCard, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   back: { fontSize: 22, color: COLORS.primary, fontWeight: '700', marginRight: 16 },
-  headerTitle: { fontSize: 20, fontWeight: '800', color: COLORS.text },
+  headerTitle: { flex: 1, fontSize: 20, fontWeight: '800', color: COLORS.text },
   stepRow: { flexDirection: 'row', alignItems: 'center', padding: 16, backgroundColor: COLORS.bgCard, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   stepItem: { alignItems: 'center' },
   stepCircle: { width: 28, height: 28, borderRadius: 14, backgroundColor: COLORS.bgElevated, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
@@ -296,6 +418,8 @@ const s = StyleSheet.create({
   serviceTagText: { fontSize: 12, color: COLORS.primary },
   stepTitle: { fontSize: 20, fontWeight: '800', color: COLORS.text, marginBottom: 6 },
   stepSub: { fontSize: 13, color: COLORS.textSecondary, marginBottom: 16 },
+  loadingBox: { alignItems: 'center', paddingVertical: 40 },
+  loadingText: { color: COLORS.textSecondary, marginTop: 12, fontSize: 14 },
   dateRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.bgCard, borderRadius: RADIUS.lg, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: COLORS.border },
   dateRowActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primaryDim },
   dateCircle: { width: 48, height: 48, borderRadius: 24, backgroundColor: COLORS.bgElevated, alignItems: 'center', justifyContent: 'center' },
@@ -326,6 +450,8 @@ const s = StyleSheet.create({
   availBadgeOn: { backgroundColor: '#0A2010' },
   availBadgeOff: { backgroundColor: COLORS.errorBg },
   availText: { fontSize: 11, fontWeight: '700', color: COLORS.primary },
+  liveNotice: { backgroundColor: COLORS.primaryDim, borderRadius: RADIUS.md, padding: 10, marginBottom: 16, borderWidth: 1, borderColor: COLORS.border },
+  liveNoticeText: { fontSize: 12, color: COLORS.primary, textAlign: 'center' },
   summaryBox: { backgroundColor: COLORS.bgCard, borderRadius: RADIUS.xl, padding: 20, borderWidth: 1, borderColor: COLORS.border },
   sumRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   sumLabel: { fontSize: 14, color: COLORS.textSecondary },

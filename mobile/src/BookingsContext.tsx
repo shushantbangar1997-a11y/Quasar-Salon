@@ -1,6 +1,15 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect, useRef } from 'react';
+import {
+  collection,
+  query,
+  where,
+  onSnapshot,
+  Unsubscribe,
+} from 'firebase/firestore';
+import { onAuthStateChanged, User } from 'firebase/auth';
 import { CartItem } from './CartContext';
 import { StaffMember } from './quasarData';
+import { auth, db, isFirebaseConfigured } from './firebase';
 
 export interface ConfirmedBooking {
   id: string;
@@ -16,6 +25,7 @@ export interface ConfirmedBooking {
 interface BookingsContextType {
   bookings: ConfirmedBooking[];
   addBooking: (booking: Omit<ConfirmedBooking, 'id' | 'createdAt'>) => ConfirmedBooking;
+  isRealTime: boolean;
 }
 
 const BookingsContext = createContext<BookingsContextType | null>(null);
@@ -51,6 +61,72 @@ const DEMO_BOOKINGS: ConfirmedBooking[] = [
 
 export function BookingsProvider({ children }: { children: ReactNode }) {
   const [bookings, setBookings] = useState<ConfirmedBooking[]>(DEMO_BOOKINGS);
+  const [isRealTime, setIsRealTime] = useState(false);
+  const bookingsUnsubRef = useRef<Unsubscribe | null>(null);
+
+  useEffect(() => {
+    if (!isFirebaseConfigured || !auth || !db) return;
+
+    const unsubAuth = onAuthStateChanged(auth, (user: User | null) => {
+      if (bookingsUnsubRef.current) {
+        bookingsUnsubRef.current();
+        bookingsUnsubRef.current = null;
+      }
+
+      if (!user || !db) {
+        setIsRealTime(false);
+        setBookings(DEMO_BOOKINGS);
+        return;
+      }
+
+      const q = query(
+        collection(db, 'bookings'),
+        where('userId', '==', user.uid)
+      );
+
+      const unsubBookings = onSnapshot(
+        q,
+        snap => {
+          if (snap.empty) {
+            setBookings(DEMO_BOOKINGS);
+            setIsRealTime(true);
+            return;
+          }
+
+          const firestoreBookings: ConfirmedBooking[] = snap.docs.map(doc => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              services: (data.services as CartItem[]) ?? [],
+              date: (data.dateLabel as string) ?? (data.date as string) ?? '',
+              time: (data.timeSlot as string) ?? '',
+              stylist: (data.stylist as StaffMember | null) ?? null,
+              total: (data.total as number) ?? 0,
+              status: (data.status as ConfirmedBooking['status']) ?? 'pending',
+              createdAt: typeof data.createdAt?.toMillis === 'function'
+                ? data.createdAt.toMillis()
+                : Date.now(),
+            };
+          });
+
+          firestoreBookings.sort((a, b) => b.createdAt - a.createdAt);
+          setBookings(firestoreBookings);
+          setIsRealTime(true);
+        },
+        err => {
+          console.warn('[BookingsContext] onSnapshot error:', err);
+          setIsRealTime(false);
+        }
+      );
+
+      bookingsUnsubRef.current = unsubBookings;
+    });
+
+    return () => {
+      unsubAuth();
+      if (bookingsUnsubRef.current) bookingsUnsubRef.current();
+    };
+  }, []);
 
   const addBooking = (data: Omit<ConfirmedBooking, 'id' | 'createdAt'>) => {
     const booking: ConfirmedBooking = {
@@ -63,7 +139,7 @@ export function BookingsProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <BookingsContext.Provider value={{ bookings, addBooking }}>
+    <BookingsContext.Provider value={{ bookings, addBooking, isRealTime }}>
       {children}
     </BookingsContext.Provider>
   );

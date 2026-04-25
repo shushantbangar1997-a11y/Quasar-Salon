@@ -3,11 +3,12 @@ import * as cors from 'cors';
 import * as express from 'express';
 import type { RequestHandler } from 'express';
 import {
-  Booking,
   BookingStatus,
   CreateBookingRequest,
+  CreateQuasarBookingRequest,
   FavouritesRequest,
   Provider,
+  QuasarStaff,
   UpsertProviderRequest,
   UpdateBookingStatusRequest,
   UpdateUserRequest,
@@ -96,8 +97,44 @@ const authenticateUser: RequestHandler = async (req, res, next) => {
   }
 };
 
+/** Quasar time-slot helpers */
+const QUASAR_TIME_SLOTS = [
+  '9:00 AM', '9:30 AM', '10:00 AM', '10:30 AM',
+  '11:00 AM', '11:30 AM', '12:00 PM', '12:30 PM',
+  '1:00 PM', '1:30 PM', '2:00 PM', '2:30 PM',
+  '3:00 PM', '3:30 PM', '4:00 PM', '4:30 PM',
+  '5:00 PM', '5:30 PM', '6:00 PM', '6:30 PM',
+  '7:00 PM', '7:30 PM', '8:00 PM',
+];
+
+const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+function getDayName(dateStr: string): string {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const d = new Date(year, month - 1, day);
+  return DAY_NAMES[d.getDay()];
+}
+
+function slotTo24h(slot: string): string {
+  const parts = slot.split(' ');
+  const period = parts[1];
+  const timeParts = parts[0].split(':').map(Number);
+  let hour = timeParts[0];
+  const minute = timeParts[1];
+  if (period === 'PM' && hour !== 12) hour += 12;
+  if (period === 'AM' && hour === 12) hour = 0;
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+}
+
+function blockedSlotDocId(staffId: string, dateStr: string, timeSlot: string): string {
+  const safeSlot = timeSlot.replace(/[: ]/g, '-');
+  return `${staffId}__${dateStr}__${safeSlot}`;
+}
+
+/** ──── Routes ──── */
+
 app.get('/health', (_req, res) => {
-  res.json({ ok: true, service: 'beautybooking-api' });
+  res.json({ ok: true, service: 'quasar-salon-api' });
 });
 
 app.get('/users/me', authenticateUser, async (req, res) => {
@@ -258,28 +295,158 @@ app.post('/providers/me', authenticateUser, async (req, res) => {
   res.status(200).json({ id: fresh.id, ...fresh.data() });
 });
 
+/** ──── Quasar Staff endpoints ──── */
+
+/** GET /staff — list all active staff (public) */
+app.get('/staff', async (_req, res) => {
+  try {
+    const snap = await db.collection('staff').get();
+    const staff = snap.docs.map(d => ({ id: d.id, ...d.data() } as QuasarStaff));
+    res.status(200).json(staff);
+  } catch (err) {
+    console.error('GET /staff error:', err);
+    res.status(500).json({ error: 'Failed to list staff' });
+  }
+});
+
+/** GET /staff/:id/slots?date=YYYY-MM-DD — get available time slots for a staff member (public) */
+app.get('/staff/:id/slots', async (req, res) => {
+  const staffId = req.params.id;
+  const dateStr = req.query.date as string;
+
+  if (!isNonEmptyString(dateStr) || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    return void badRequest(res, 'date query param required in YYYY-MM-DD format');
+  }
+
+  try {
+    const staffDoc = await db.collection('staff').doc(staffId).get();
+    if (!staffDoc.exists) return void res.status(404).json({ error: 'Staff member not found' });
+
+    const staff = staffDoc.data() as QuasarStaff;
+    if (!staff.available) return void res.status(200).json({ staffId, date: dateStr, slots: [] });
+
+    const dayName = getDayName(dateStr);
+    const daySchedule = staff.schedule?.[dayName];
+
+    if (!daySchedule) {
+      return void res.status(200).json({ staffId, date: dateStr, slots: [] });
+    }
+
+    const scheduleStart = daySchedule.start;
+    const scheduleEnd = daySchedule.end;
+
+    const slotsInSchedule = QUASAR_TIME_SLOTS.filter(slot => {
+      const slot24 = slotTo24h(slot);
+      return slot24 >= scheduleStart && slot24 < scheduleEnd;
+    });
+
+    const blockedSnap = await db.collection('blocked_slots')
+      .where('staffId', '==', staffId)
+      .where('date', '==', dateStr)
+      .get();
+
+    const blockedSlotSet = new Set(blockedSnap.docs.map(d => d.data().timeSlot as string));
+
+    const availableSlots = slotsInSchedule.filter(s => !blockedSlotSet.has(s));
+
+    res.status(200).json({ staffId, date: dateStr, slots: availableSlots });
+  } catch (err) {
+    console.error('GET /staff/:id/slots error:', err);
+    res.status(500).json({ error: 'Failed to get slots' });
+  }
+});
+
+/** ──── Bookings ──── */
+
 app.post('/bookings', authenticateUser, async (req, res) => {
   const uid = requireAuth(req, res);
   if (!uid) return;
 
-  const body = req.body as CreateBookingRequest;
+  const body = req.body;
 
-  if (!body || !isNonEmptyString(body.providerId)) return void badRequest(res, 'providerId is required');
-  if (!body.service || !isNonEmptyString(body.service.name)) return void badRequest(res, 'service is required');
-  if (!isNonEmptyString(body.date)) return void badRequest(res, 'date is required (ISO string)');
+  /** Quasar Salon booking format: staffId + timeSlot + services[] */
+  if (isNonEmptyString(body.staffId) && isNonEmptyString(body.timeSlot)) {
+    const quasarBody = body as CreateQuasarBookingRequest;
 
-  const providerId = body.providerId.trim();
+    if (!isNonEmptyString(quasarBody.date)) return void badRequest(res, 'date is required (YYYY-MM-DD)');
+    if (!isNonEmptyString(quasarBody.dateLabel)) return void badRequest(res, 'dateLabel is required');
+    if (!Array.isArray(quasarBody.services) || quasarBody.services.length === 0) {
+      return void badRequest(res, 'services must be a non-empty array');
+    }
+    const total = asNumber(quasarBody.total);
+    if (total === null || total < 0) return void badRequest(res, 'total must be a non-negative number');
+
+    const staffId = quasarBody.staffId.trim();
+    const timeSlot = quasarBody.timeSlot.trim();
+    const dateStr = quasarBody.date.trim();
+
+    const staffDoc = await db.collection('staff').doc(staffId).get();
+    if (!staffDoc.exists) return void badRequest(res, 'Staff member not found');
+
+    const blockedId = blockedSlotDocId(staffId, dateStr, timeSlot);
+    const blockedRef = db.collection('blocked_slots').doc(blockedId);
+    const bookingRef = db.collection('bookings').doc();
+
+    try {
+      await db.runTransaction(async tx => {
+        const blockedSnap = await tx.get(blockedRef);
+        if (blockedSnap.exists) {
+          throw Object.assign(new Error('SLOT_TAKEN'), { code: 409 });
+        }
+
+        tx.set(blockedRef, {
+          staffId,
+          date: dateStr,
+          timeSlot,
+          bookingId: bookingRef.id,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        tx.set(bookingRef, {
+          userId: uid,
+          staffId,
+          timeSlot,
+          date: dateStr,
+          dateLabel: quasarBody.dateLabel.trim(),
+          services: quasarBody.services,
+          total,
+          status: 'pending',
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      });
+
+      const created = await bookingRef.get();
+      res.status(201).json({ id: created.id, ...created.data() });
+    } catch (err: unknown) {
+      if (err instanceof Error && err.message === 'SLOT_TAKEN') {
+        return void res.status(409).json({ error: 'This time slot is no longer available. Please choose another.' });
+      }
+      console.error('POST /bookings (quasar) transaction error:', err);
+      res.status(500).json({ error: 'Failed to create booking' });
+    }
+    return;
+  }
+
+  /** Legacy booking format: providerId + service (single) */
+  const legacyBody = body as CreateBookingRequest;
+
+  if (!legacyBody || !isNonEmptyString(legacyBody.providerId)) return void badRequest(res, 'providerId is required');
+  if (!legacyBody.service || !isNonEmptyString(legacyBody.service.name)) return void badRequest(res, 'service is required');
+  if (!isNonEmptyString(legacyBody.date)) return void badRequest(res, 'date is required (ISO string)');
+
+  const providerId = legacyBody.providerId.trim();
   const providerSnap = await db.collection('providers').doc(providerId).get();
   if (!providerSnap.exists) return void badRequest(res, 'Provider not found');
 
-  const service = body.service;
+  const service = legacyBody.service;
   const price = asNumber(service.price);
   const dur = asNumber(service.durationMins);
   if (!isNonEmptyString(service.category)) return void badRequest(res, 'service.category is required');
   if (price === null || price < 0) return void badRequest(res, 'service.price must be a non-negative number');
   if (dur === null || dur <= 0) return void badRequest(res, 'service.durationMins must be a positive number');
 
-  const bookingData: Omit<Booking, 'id'> = {
+  const bookingData = {
     userId: uid,
     providerId,
     service: {
@@ -288,9 +455,9 @@ app.post('/bookings', authenticateUser, async (req, res) => {
       price,
       durationMins: dur,
     },
-    date: body.date,
-    notes: isNonEmptyString(body.notes) ? body.notes.trim() : undefined,
-    status: 'pending',
+    date: legacyBody.date,
+    notes: isNonEmptyString(legacyBody.notes) ? legacyBody.notes.trim() : undefined,
+    status: 'pending' as BookingStatus,
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   };
@@ -309,7 +476,7 @@ app.get('/bookings', authenticateUser, async (req, res) => {
     let query: FirebaseFirestore.Query = db.collection('bookings');
 
     if (role === 'provider') {
-      query = query.where('providerId', '==', uid);
+      query = query.where('staffId', '==', uid);
     } else {
       query = query.where('userId', '==', uid);
     }
@@ -317,7 +484,7 @@ app.get('/bookings', authenticateUser, async (req, res) => {
     const status = isNonEmptyString(req.query.status) ? (String(req.query.status).trim() as BookingStatus) : null;
     if (status) query = query.where('status', '==', status);
 
-    query = query.orderBy('date', 'desc').limit(50);
+    query = query.orderBy('createdAt', 'desc').limit(50);
 
     const snap = await query.get();
     res.status(200).json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
@@ -345,7 +512,7 @@ app.patch('/bookings/:id/status', authenticateUser, async (req, res) => {
   if (!snap.exists) return void res.status(404).json({ error: 'Booking not found' });
 
   const data = snap.data()!;
-  const canEdit = data.userId === uid || data.providerId === uid;
+  const canEdit = data.userId === uid || data.staffId === uid || data.providerId === uid;
   if (!canEdit) return void forbidden(res, 'Not allowed to update this booking');
 
   await ref.set({ status, ...nowTimestamps() }, { merge: true });
