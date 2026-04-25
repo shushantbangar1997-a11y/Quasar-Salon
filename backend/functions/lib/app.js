@@ -360,6 +360,7 @@ exports.app.get('/staff/:id/slots', getStaffAvailabilityHandler);
 exports.app.get('/staff/:id/availability', getStaffAvailabilityHandler);
 /** ──── Bookings ──── */
 exports.app.post('/bookings', authenticateUser, async (req, res) => {
+    var _a, _b;
     const uid = requireAuth(req, res);
     if (!uid)
         return;
@@ -383,14 +384,32 @@ exports.app.post('/bookings', authenticateUser, async (req, res) => {
         const staffDoc = await db.collection('staff').doc(staffId).get();
         if (!staffDoc.exists)
             return void badRequest(res, 'Staff member not found');
-        // Determine how many 30-min slots the booking spans based on total service duration
-        const totalDuration = quasarBody.services.reduce((sum, s) => { var _a; return sum + ((_a = s.durationMins) !== null && _a !== void 0 ? _a : 30); }, 0);
+        const staff = staffDoc.data();
+        if (!staff.available)
+            return void badRequest(res, 'This staff member is not currently available for bookings');
+        // Validate day schedule
+        const dayName = getDayName(dateStr);
+        const daySchedule = (_a = staff.schedule) === null || _a === void 0 ? void 0 : _a[dayName];
+        if (!daySchedule) {
+            return void badRequest(res, `${(_b = staff.name) !== null && _b !== void 0 ? _b : 'This stylist'} does not work on ${dayName}s`);
+        }
+        const { start: scheduleStart, end: scheduleEnd } = daySchedule;
+        // Determine how many 30-min slots the booking spans; multiply durationMins by qty
+        const totalDuration = quasarBody.services.reduce((sum, s) => { var _a, _b; return sum + ((_a = s.durationMins) !== null && _a !== void 0 ? _a : 30) * Math.max(1, (_b = s.qty) !== null && _b !== void 0 ? _b : 1); }, 0);
         const slotsNeeded = Math.max(1, Math.ceil(totalDuration / 30));
         const startIdx = QUASAR_TIME_SLOTS.indexOf(timeSlot);
         if (startIdx === -1)
             return void badRequest(res, 'Invalid time slot');
         if (startIdx + slotsNeeded > QUASAR_TIME_SLOTS.length) {
             return void badRequest(res, 'Booking would extend past closing time. Please choose an earlier slot.');
+        }
+        // Verify all consecutive slots fall within the staff member's working hours
+        for (let i = 0; i < slotsNeeded; i++) {
+            const checkSlot = QUASAR_TIME_SLOTS[startIdx + i];
+            const slot24 = slotTo24h(checkSlot);
+            if (slot24 < scheduleStart || slot24 >= scheduleEnd) {
+                return void badRequest(res, 'One or more slots fall outside the stylist\'s working hours. Please choose a different time.');
+            }
         }
         const slotsToBlock = QUASAR_TIME_SLOTS.slice(startIdx, startIdx + slotsNeeded);
         const blockedRefs = slotsToBlock.map(slot => db.collection('blocked_slots').doc(blockedSlotDocId(staffId, dateStr, slot)));
