@@ -42,7 +42,7 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
     <SafeAreaView style={s.safe}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.bg} />
 
-      {/* Brand header — mirrors HomeScreen header */}
+      {/* Brand header */}
       <View style={s.header}>
         <View style={s.logoRow}>
           <Image
@@ -55,8 +55,10 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
             <Text style={s.logoSub}>Explore services</Text>
           </View>
         </View>
+      </View>
 
-        {/* Search input — right side of header */}
+      {/* Full-width search input */}
+      <View style={s.searchRow}>
         <View style={s.searchBox}>
           <Text style={s.searchIcon}>🔍</Text>
           <TextInput
@@ -168,15 +170,10 @@ const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.bg },
 
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingTop: 12,
-    paddingBottom: 12,
+    paddingBottom: 10,
     backgroundColor: COLORS.bg,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
   },
   logoRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   topLogo: { width: 42, height: 42 },
@@ -195,8 +192,14 @@ const s = StyleSheet.create({
     marginTop: 1,
   },
 
+  searchRow: {
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+    backgroundColor: COLORS.bg,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
   searchBox: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.bgCard,
@@ -205,8 +208,6 @@ const s = StyleSheet.create({
     paddingVertical: 9,
     borderWidth: 1,
     borderColor: COLORS.border,
-    marginLeft: 14,
-    maxWidth: 200,
   },
   searchIcon: { fontSize: 13, marginRight: 6 },
   input: { flex: 1, fontSize: 13, color: COLORS.text, paddingVertical: 0 },
