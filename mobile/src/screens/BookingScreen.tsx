@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { useCart } from '../CartContext';
 import { useBookings } from '../BookingsContext';
-import { QUASAR_STAFF, TIME_SLOTS, DEMO_BUSY_SLOTS, StaffMember } from '../quasarData';
+import { QUASAR_STAFF, DEMO_BUSY_SLOTS, StaffMember } from '../quasarData';
 import { COLORS, RADIUS } from '../theme';
 import { BookingScreenProps } from '../navigation';
 import {
@@ -16,17 +16,9 @@ import {
   createQuasarBooking,
   buildQuasarBookingPayload,
 } from '../api';
+import CalendarTimePicker from '../components/CalendarTimePicker';
 
-const DATES = Array.from({ length: 14 }, (_, i) => {
-  const d = new Date();
-  d.setDate(d.getDate() + i + 1);
-  return {
-    label: d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' }),
-    iso: d.toISOString().split('T')[0],
-  };
-});
-
-type Step = 'date' | 'time' | 'stylist' | 'confirm';
+type Step = 'date' | 'stylist' | 'confirm';
 
 export default function BookingScreen({ navigation, route }: BookingScreenProps) {
   const { items, totalPrice, clearCart } = useCart();
@@ -34,13 +26,18 @@ export default function BookingScreen({ navigation, route }: BookingScreenProps)
 
   const reschedule = route?.params?.reschedule;
 
-  // For reschedule: try to find the original date in the upcoming 14 days; fall back to first date
-  const initialDate = reschedule?.dateIso
-    ? (DATES.find(d => d.iso === reschedule.dateIso) ?? DATES[0])
-    : DATES[0];
+  const toDateItem = (iso: string) => {
+    const d = new Date(iso);
+    return {
+      label: d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' }),
+      iso,
+    };
+  };
+
+  const initialDate = reschedule?.dateIso ? toDateItem(reschedule.dateIso) : null;
 
   const [step, setStep] = useState<Step>('date');
-  const [selectedDate, setSelectedDate] = useState(initialDate);
+  const [selectedDate, setSelectedDate] = useState<{ label: string; iso: string } | null>(initialDate);
   const [selectedTime, setSelectedTime] = useState(reschedule?.timeSlot ?? '');
   const [selectedStylist, setSelectedStylist] = useState<StaffMember | null>(
     reschedule?.stylist ?? null
@@ -88,9 +85,9 @@ export default function BookingScreen({ navigation, route }: BookingScreenProps)
     }
   }, [apiAvailable, staffList, totalDuration]);
 
-  const advanceToTime = () => {
-    fetchSlotsForDate(selectedDate.iso);
-    setStep('time');
+  const advanceToStylist = () => {
+    if (selectedDate) fetchSlotsForDate(selectedDate.iso);
+    setStep('stylist');
   };
 
   /** Check if a staff member is available at a given time */
@@ -122,12 +119,12 @@ export default function BookingScreen({ navigation, route }: BookingScreenProps)
     if (apiAvailable) {
       try {
         // Re-check slot is still available (duration-aware) before submitting
-        const freshAvailability = await fetchStaffSlots(selectedStylist!.id, selectedDate.iso, totalDuration || undefined);
+        const freshAvailability = await fetchStaffSlots(selectedStylist!.id, selectedDate!.iso, totalDuration || undefined);
         if (!freshAvailability.slots.includes(selectedTime)) {
           setLoading(false);
           setErrorMsg('This time slot was just taken. Please choose a different time.');
           setSelectedTime('');
-          setStep('time');
+          setStep('date');
           return;
         }
 
@@ -135,8 +132,8 @@ export default function BookingScreen({ navigation, route }: BookingScreenProps)
           items,
           selectedStylist!.id,
           selectedTime,
-          selectedDate.iso,
-          selectedDate.label,
+          selectedDate!.iso,
+          selectedDate!.label,
           totalPrice
         );
         const result = await createQuasarBooking(payload);
@@ -144,7 +141,7 @@ export default function BookingScreen({ navigation, route }: BookingScreenProps)
         const booking = {
           id: result.id,
           services: items,
-          date: selectedDate.label,
+          date: selectedDate?.label ?? '',
           time: selectedTime,
           stylist: selectedStylist,
           total: totalPrice,
@@ -163,7 +160,7 @@ export default function BookingScreen({ navigation, route }: BookingScreenProps)
           if (e.status === 409) {
             setErrorMsg('This time slot was just booked by someone else. Please choose a different time.');
             setSelectedTime('');
-            setStep('time');
+            setStep('date');
           } else {
             setErrorMsg(e.message || 'Something went wrong. Please try again.');
           }
@@ -197,7 +194,7 @@ export default function BookingScreen({ navigation, route }: BookingScreenProps)
 
       const booking = addBooking({
         services: serviceSnapshot,
-        date: selectedDate.label,
+        date: selectedDate?.label ?? '',
         time: selectedTime,
         stylist: selectedStylist,
         total: totalPrice,
@@ -215,10 +212,9 @@ export default function BookingScreen({ navigation, route }: BookingScreenProps)
   };
 
   const STEPS: { key: Step; label: string; num: number }[] = [
-    { key: 'date', label: 'Date', num: 1 },
-    { key: 'time', label: 'Time', num: 2 },
-    { key: 'stylist', label: 'Stylist', num: 3 },
-    { key: 'confirm', label: 'Confirm', num: 4 },
+    { key: 'date', label: 'Date & Time', num: 1 },
+    { key: 'stylist', label: 'Stylist', num: 2 },
+    { key: 'confirm', label: 'Confirm', num: 3 },
   ];
 
   const stepIdx = STEPS.findIndex(s => s.key === step);
@@ -272,68 +268,25 @@ export default function BookingScreen({ navigation, route }: BookingScreenProps)
         </View>
 
         {step === 'date' && (
-          <View>
-            <Text style={s.stepTitle}>Select a Date</Text>
-            {DATES.map(d => (
-              <Pressable
-                key={d.iso}
-                onPress={() => setSelectedDate(d)}
-                style={[s.dateRow, selectedDate.iso === d.iso && s.dateRowActive]}
-              >
-                <View style={[s.dateCircle, selectedDate.iso === d.iso && s.dateCircleActive]}>
-                  <Text style={[s.dateCircleText, selectedDate.iso === d.iso && s.dateCircleTextActive]}>
-                    {d.label.split(' ')[1]}
-                  </Text>
-                </View>
-                <View style={{ flex: 1, marginLeft: 14 }}>
-                  <Text style={[s.dateLabel, selectedDate.iso === d.iso && { color: COLORS.primary }]}>{d.label}</Text>
-                </View>
-                {selectedDate.iso === d.iso && <Text style={{ color: COLORS.primary, fontSize: 18 }}>✓</Text>}
-              </Pressable>
-            ))}
-          </View>
-        )}
-
-        {step === 'time' && (
-          <View>
-            <Text style={s.stepTitle}>Select a Time Slot</Text>
-            <Text style={s.stepSub}>{selectedDate.label}</Text>
-
-            {slotsLoading ? (
-              <View style={s.loadingBox}>
-                <ActivityIndicator size="large" color={COLORS.primary} />
-                <Text style={s.loadingText}>Checking live availability…</Text>
-              </View>
-            ) : (
-              <View style={s.timeGrid}>
-                {TIME_SLOTS.map(t => {
-                  const active = selectedTime === t;
-                  const freeCount = staffList.filter(st => isStaffAvailableAtTime(st, t)).length;
-                  const noAvail = freeCount === 0;
-                  return (
-                    <Pressable
-                      key={t}
-                      onPress={() => !noAvail && setSelectedTime(t)}
-                      disabled={noAvail}
-                      style={[s.timeChip, active && s.timeChipActive, noAvail && s.timeChipUnavail]}
-                    >
-                      <Text style={[s.timeText, active && s.timeTextActive, noAvail && s.timeTextDim]}>{t}</Text>
-                      <Text style={[s.timeAvail, active && { color: COLORS.bg }, noAvail && s.timeTextDim]}>
-                        {noAvail ? 'Full' : `${freeCount} free`}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            )}
-          </View>
+          <CalendarTimePicker
+            selectedDate={selectedDate}
+            selectedTime={selectedTime}
+            onDateChange={d => {
+              setSelectedDate(d);
+              if (apiAvailable) fetchSlotsForDate(d.iso);
+            }}
+            onTimeChange={setSelectedTime}
+            staffList={staffList}
+            getFreeCount={t => staffList.filter(st => isStaffAvailableAtTime(st, t)).length}
+            slotsLoading={slotsLoading}
+          />
         )}
 
         {step === 'stylist' && (
           <View>
             <Text style={s.stepTitle}>Choose Your Stylist</Text>
             <Text style={s.stepSub}>
-              Available on {selectedDate.label} at {selectedTime}
+              Available on {selectedDate?.label} at {selectedTime}
               {' '}({availableStaff.length} stylist{availableStaff.length !== 1 ? 's' : ''} free)
               {apiAvailable && <Text style={{ color: COLORS.primary }}> · Live</Text>}
             </Text>
@@ -382,7 +335,7 @@ export default function BookingScreen({ navigation, route }: BookingScreenProps)
               </View>
             )}
             <View style={s.summaryBox}>
-              <SumRow label="Date" value={selectedDate.label} />
+              <SumRow label="Date" value={selectedDate?.label ?? ''} />
               <SumRow label="Time" value={selectedTime} />
               <SumRow label="Stylist" value={selectedStylist?.name ?? 'Any Available'} />
               <View style={s.divider} />
@@ -411,15 +364,10 @@ export default function BookingScreen({ navigation, route }: BookingScreenProps)
           </View>
         ) : null}
         {step === 'date' && (
-          <Pressable style={s.ctaBtn} onPress={advanceToTime}>
-            <Text style={s.ctaBtnText}>Continue to Time →</Text>
-          </Pressable>
-        )}
-        {step === 'time' && (
           <Pressable
-            style={[s.ctaBtn, (!selectedTime || slotsLoading) && s.ctaBtnDisabled]}
-            disabled={!selectedTime || slotsLoading}
-            onPress={() => setStep('stylist')}
+            style={[s.ctaBtn, (!selectedDate || !selectedTime) && s.ctaBtnDisabled]}
+            disabled={!selectedDate || !selectedTime}
+            onPress={advanceToStylist}
           >
             <Text style={s.ctaBtnText}>Choose Stylist →</Text>
           </Pressable>
