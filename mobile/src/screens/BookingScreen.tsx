@@ -98,7 +98,7 @@ export default function BookingScreen({ navigation }: BookingScreenProps) {
     return isStaffAvailableAtTime(staff, selectedTime);
   });
 
-  /** Confirm booking — try API, fall back to local state */
+  /** Confirm booking — use API when available, local state only when API is not configured */
   const handleConfirm = async () => {
     setLoading(true);
 
@@ -130,8 +130,8 @@ export default function BookingScreen({ navigation }: BookingScreenProps) {
         navigation.navigate('BookingSuccess', { booking });
         return;
       } catch (e: unknown) {
+        setLoading(false);
         if (e instanceof ApiError && e.status === 409) {
-          setLoading(false);
           Alert.alert(
             'Slot Unavailable',
             'This time slot was just booked by someone else. Please choose a different time.',
@@ -139,10 +139,13 @@ export default function BookingScreen({ navigation }: BookingScreenProps) {
           );
           return;
         }
-        console.warn('[BookingScreen] API booking failed, using local fallback:', e instanceof Error ? e.message : e);
+        const message = e instanceof Error ? e.message : 'Something went wrong. Please try again.';
+        Alert.alert('Booking Failed', message, [{ text: 'OK' }]);
+        return;
       }
     }
 
+    // Local-only mode (API not configured) — demo / development fallback
     await new Promise<void>(r => setTimeout(r, 600));
     const booking = addBooking({
       services: items,

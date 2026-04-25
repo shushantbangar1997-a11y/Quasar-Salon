@@ -87,12 +87,6 @@ export function BookingsProvider({ children }: { children: ReactNode }) {
       const unsubBookings = onSnapshot(
         q,
         snap => {
-          if (snap.empty) {
-            setBookings(DEMO_BOOKINGS);
-            setIsRealTime(true);
-            return;
-          }
-
           const firestoreBookings: ConfirmedBooking[] = snap.docs.map(doc => {
             const data = doc.data();
             return {
@@ -110,11 +104,13 @@ export function BookingsProvider({ children }: { children: ReactNode }) {
           });
 
           firestoreBookings.sort((a, b) => b.createdAt - a.createdAt);
+          // Show real data (even if empty) — do not fall back to DEMO_BOOKINGS
           setBookings(firestoreBookings);
           setIsRealTime(true);
         },
         err => {
           console.warn('[BookingsContext] onSnapshot error:', err);
+          // Leave existing state intact on error; disable real-time indicator
           setIsRealTime(false);
         }
       );

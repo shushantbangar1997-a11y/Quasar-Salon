@@ -473,21 +473,46 @@ app.get('/bookings', authenticateUser, async (req, res) => {
 
   try {
     const role = await getUserRole(uid);
-    let query: FirebaseFirestore.Query = db.collection('bookings');
+    const status = isNonEmptyString(req.query.status) ? (String(req.query.status).trim() as BookingStatus) : null;
 
     if (role === 'provider') {
-      query = query.where('staffId', '==', uid);
-    } else {
-      query = query.where('userId', '==', uid);
+      // Support both legacy providerId bookings and new Quasar staffId bookings
+      const [staffSnap, providerSnap] = await Promise.all([
+        db.collection('bookings').where('staffId', '==', uid).get(),
+        db.collection('bookings').where('providerId', '==', uid).get(),
+      ]);
+
+      const seen = new Set<string>();
+      const merged = [...staffSnap.docs, ...providerSnap.docs].filter(d => {
+        if (seen.has(d.id)) return false;
+        seen.add(d.id);
+        return true;
+      });
+
+      const items = merged
+        .map(d => ({ id: d.id, ...d.data() } as Record<string, unknown>))
+        .filter(d => !status || d.status === status)
+        .sort((a, b) => {
+          const ta = (a.createdAt as FirebaseFirestore.Timestamp)?.toMillis?.() ?? 0;
+          const tb = (b.createdAt as FirebaseFirestore.Timestamp)?.toMillis?.() ?? 0;
+          return tb - ta;
+        })
+        .slice(0, 50);
+
+      res.status(200).json(items);
+      return;
     }
 
-    const status = isNonEmptyString(req.query.status) ? (String(req.query.status).trim() as BookingStatus) : null;
-    if (status) query = query.where('status', '==', status);
+    // Client: query by userId, sort + limit server-side
+    let clientQuery: FirebaseFirestore.Query = db.collection('bookings')
+      .where('userId', '==', uid)
+      .orderBy('createdAt', 'desc')
+      .limit(50);
 
-    query = query.orderBy('createdAt', 'desc').limit(50);
-
-    const snap = await query.get();
-    res.status(200).json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    const snap = await clientQuery.get();
+    const docs = snap.docs.map(d => ({ id: d.id, ...d.data() } as Record<string, unknown>));
+    const filtered = status ? docs.filter(d => d.status === status) : docs;
+    res.status(200).json(filtered);
   } catch (err) {
     console.error('GET /bookings error:', err);
     res.status(500).json({ error: 'Failed to list bookings' });
