@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, ScrollView, Pressable, StyleSheet,
-  SafeAreaView, StatusBar,
+  SafeAreaView, StatusBar, Image,
 } from 'react-native';
 import { QuasarService } from '../quasarData';
 import { useCart } from '../CartContext';
@@ -39,10 +39,12 @@ export default function CategoryScreen({ route, navigation }: CategoryScreenProp
           <Text style={s.backText}>←</Text>
         </Pressable>
         <View style={{ flex: 1 }}>
-          <Text style={s.catIcon}>{category.icon}</Text>
           <Text style={s.title}>{category.name}</Text>
           <Text style={s.subtitle}>{category.services.length} services available</Text>
         </View>
+        {category.imageUrl ? (
+          <Image source={{ uri: category.imageUrl }} style={s.headerImage} resizeMode="cover" />
+        ) : null}
       </View>
 
       {/* Gender filter */}
@@ -118,10 +120,10 @@ export default function CategoryScreen({ route, navigation }: CategoryScreenProp
 
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.bg },
-  header: { flexDirection: 'row', alignItems: 'flex-start', padding: 20, backgroundColor: COLORS.bgCard, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  back: { marginRight: 14, marginTop: 4 },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, backgroundColor: COLORS.bgCard, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  back: { marginRight: 14 },
   backText: { fontSize: 22, color: COLORS.primary, fontWeight: '700' },
-  catIcon: { fontSize: 28, marginBottom: 4 },
+  headerImage: { width: 60, height: 60, borderRadius: 12, marginLeft: 12, backgroundColor: COLORS.bgElevated },
   title: { fontSize: 22, fontWeight: '800', color: COLORS.text },
   subtitle: { fontSize: 13, color: COLORS.textSecondary, marginTop: 2 },
   filterRow: { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: COLORS.bgCard, borderBottomWidth: 1, borderBottomColor: COLORS.border, gap: 8 },

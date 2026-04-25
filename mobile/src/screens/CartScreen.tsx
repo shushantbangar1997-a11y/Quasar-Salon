@@ -13,7 +13,7 @@ export default function CartScreen({ navigation }: CartScreenProps) {
   if (items.length === 0) {
     return (
       <SafeAreaView style={s.safe}>
-        <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
+        <StatusBar barStyle="dark-content" backgroundColor={COLORS.bg} />
         <View style={s.header}>
           <Pressable onPress={() => navigation.goBack()}>
             <Text style={s.back}>←</Text>
@@ -34,7 +34,7 @@ export default function CartScreen({ navigation }: CartScreenProps) {
 
   return (
     <SafeAreaView style={s.safe}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.bg} />
 
       <View style={s.header}>
         <Pressable onPress={() => navigation.goBack()}>

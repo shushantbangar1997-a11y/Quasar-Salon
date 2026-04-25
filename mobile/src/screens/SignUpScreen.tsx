@@ -30,7 +30,7 @@ export default function SignUpScreen({ navigation }: SignUpScreenProps) {
 
   return (
     <SafeAreaView style={s.safe}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.bg} />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView contentContainerStyle={s.container} keyboardShouldPersistTaps="handled">
           <Pressable onPress={() => navigation.goBack()} style={s.backRow}>

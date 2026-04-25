@@ -33,7 +33,7 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
 
   return (
     <SafeAreaView style={s.safe}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.bg} />
       <ScrollView showsVerticalScrollIndicator={false}>
 
         {/* Logo header */}

@@ -31,7 +31,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
 
   return (
     <SafeAreaView style={s.safe}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.bg} />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <View style={s.container}>
           <Pressable onPress={() => navigation.navigate('MainTabs')} style={s.backRow}>

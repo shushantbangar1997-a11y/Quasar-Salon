@@ -37,7 +37,7 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
 
   return (
     <SafeAreaView style={s.safe}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.bg} />
 
       <View style={s.header}>
         <Text style={s.title}>Search Services</Text>
