@@ -30,8 +30,7 @@ function MainTabs() {
   return (
     <Tab.Navigator
       tabBar={props => <FloatingTabBar {...props} />}
-      screenOptions={{ headerShown: false }}
-      sceneContainerStyle={{ paddingBottom: 88 }}
+      screenOptions={{ headerShown: false, sceneStyle: { paddingBottom: 88 } }}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Search" component={SearchScreen} />
