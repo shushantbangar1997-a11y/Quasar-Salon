@@ -1,17 +1,21 @@
 import React, { useEffect, useRef } from 'react';
-import { ActivityIndicator, View, Text } from 'react-native';
+import { Text } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { signInAnonymously } from 'firebase/auth';
 import { auth } from './src/firebase';
+import { CartProvider } from './src/CartContext';
+import { COLORS } from './src/theme';
 
 import HomeScreen from './src/screens/HomeScreen';
 import SearchScreen from './src/screens/SearchScreen';
 import MyBookingsScreen from './src/screens/MyBookingsScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
-import HairdresserDetailScreen from './src/screens/HairdresserDetailScreen';
+import CategoryScreen from './src/screens/CategoryScreen';
+import CartScreen from './src/screens/CartScreen';
 import BookingScreen from './src/screens/BookingScreen';
+import BookingSuccessScreen from './src/screens/BookingSuccessScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import SignUpScreen from './src/screens/SignUpScreen';
 
@@ -19,7 +23,10 @@ const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
 const TAB_ICONS: Record<string, string> = {
-  Home: '🏠', Search: '🔍', Bookings: '📅', Profile: '👤',
+  Home: '🏠',
+  Search: '🔍',
+  Bookings: '📅',
+  Profile: '👤',
 };
 
 function MainTabs() {
@@ -27,11 +34,12 @@ function MainTabs() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarActiveTintColor: '#E91E8C',
-        tabBarInactiveTintColor: '#8E8E93',
+        tabBarActiveTintColor: COLORS.primary,
+        tabBarInactiveTintColor: COLORS.textMuted,
         tabBarStyle: {
-          backgroundColor: '#fff',
-          borderTopColor: '#F0F0F0',
+          backgroundColor: COLORS.bgCard,
+          borderTopColor: COLORS.border,
+          borderTopWidth: 1,
           height: 60,
           paddingBottom: 8,
           paddingTop: 6,
@@ -59,14 +67,18 @@ export default function App() {
   }, []);
 
   return (
-    <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="MainTabs">
-        <Stack.Screen name="MainTabs" component={MainTabs} />
-        <Stack.Screen name="ProviderDetail" component={HairdresserDetailScreen} />
-        <Stack.Screen name="Booking" component={BookingScreen} />
-        <Stack.Screen name="Login" component={LoginScreen} />
-        <Stack.Screen name="SignUp" component={SignUpScreen} />
-      </Stack.Navigator>
-    </NavigationContainer>
+    <CartProvider>
+      <NavigationContainer>
+        <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="MainTabs">
+          <Stack.Screen name="MainTabs" component={MainTabs} />
+          <Stack.Screen name="Category" component={CategoryScreen} />
+          <Stack.Screen name="Cart" component={CartScreen} />
+          <Stack.Screen name="Booking" component={BookingScreen} />
+          <Stack.Screen name="BookingSuccess" component={BookingSuccessScreen} />
+          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="SignUp" component={SignUpScreen} />
+        </Stack.Navigator>
+      </NavigationContainer>
+    </CartProvider>
   );
 }

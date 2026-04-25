@@ -1,152 +1,141 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
-  View, Text, ScrollView, TextInput, Pressable,
-  StyleSheet, FlatList, SafeAreaView, StatusBar,
+  View, Text, ScrollView, Pressable, StyleSheet,
+  SafeAreaView, StatusBar, Image, Dimensions,
 } from 'react-native';
-import { DEMO_PROVIDERS, CATEGORIES } from '../demoData';
+import { QUASAR_CATEGORIES } from '../quasarData';
+import { useCart } from '../CartContext';
+import { COLORS, FONTS, RADIUS } from '../theme';
 
-const COLORS = {
-  primary: '#E91E8C',
-  bg: '#F8F9FA',
-  card: '#FFFFFF',
-  text: '#1A1A2E',
-  muted: '#8E8E93',
-  border: '#F0F0F0',
-  tag: '#FFF0F7',
-  tagText: '#E91E8C',
-};
+const { width } = Dimensions.get('window');
+
+const POPULAR = [
+  { catId: 'hair-care', svcId: 'hc-8', label: "Men's Haircut", price: 599, icon: '✂️' },
+  { catId: 'facials', svcId: 'fa-2', label: 'Red Wine Facial', price: 3999, icon: '🍷' },
+  { catId: 'nails', svcId: 'na-4', label: 'Gel Polish', price: 999, icon: '💅' },
+  { catId: 'massages', svcId: 'ms-1', label: 'Head Massage', price: 1000, icon: '💆' },
+  { catId: 'makeup', svcId: 'mu-3', label: 'HD Make-Up', price: 4499, icon: '💄' },
+  { catId: 'body', svcId: 'bd-1', label: 'Swedish Therapy', price: 2500, icon: '🛁' },
+];
 
 export default function HomeScreen({ navigation }: any) {
-  const [search, setSearch] = useState('');
-  const [activeCategory, setActiveCategory] = useState('All');
-
-  const filtered = DEMO_PROVIDERS.filter(p => {
-    const matchCategory = activeCategory === 'All' || p.categories.includes(activeCategory);
-    const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) ||
-      p.categories.some(c => c.toLowerCase().includes(search.toLowerCase()));
-    return matchCategory && matchSearch;
-  });
-
-  const featured = DEMO_PROVIDERS.slice(0, 3);
+  const { totalItems, totalPrice } = useCart();
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
+    <SafeAreaView style={s.safe}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
+      <ScrollView style={s.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: totalItems > 0 ? 100 : 40 }}>
+
         {/* Header */}
-        <View style={styles.header}>
+        <View style={s.header}>
           <View>
-            <Text style={styles.greeting}>Good morning 👋</Text>
-            <Text style={styles.headline}>Find your beauty pro</Text>
+            <Text style={s.tagline}>Welcome to</Text>
+            <Image
+              source={require('../../assets/quasar-logo.jpg')}
+              style={s.logo}
+              resizeMode="contain"
+            />
           </View>
-          <Pressable style={styles.avatar}>
+          <Pressable style={s.profileBtn} onPress={() => navigation.navigate('Profile')}>
             <Text style={{ fontSize: 20 }}>👤</Text>
           </Pressable>
         </View>
 
-        {/* Search bar */}
-        <View style={styles.searchBox}>
-          <Text style={styles.searchIcon}>🔍</Text>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search by name or service..."
-            placeholderTextColor={COLORS.muted}
-            value={search}
-            onChangeText={setSearch}
-          />
+        {/* Hero banner */}
+        <View style={s.hero}>
+          <Text style={s.heroTitle}>Book Your Luxury{'\n'}Experience</Text>
+          <Text style={s.heroSub}>Premium salon services, crafted for you</Text>
+          <Pressable style={s.heroCta} onPress={() => navigation.navigate('Search')}>
+            <Text style={s.heroCtaText}>Explore Services</Text>
+          </Pressable>
         </View>
 
-        {/* Categories */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoriesRow} contentContainerStyle={{ paddingRight: 16 }}>
-          {CATEGORIES.map(cat => (
+        {/* Service categories */}
+        <Text style={s.sectionTitle}>Our Services</Text>
+        <View style={s.catGrid}>
+          {QUASAR_CATEGORIES.map(cat => (
             <Pressable
-              key={cat}
-              onPress={() => setActiveCategory(cat)}
-              style={[styles.catChip, activeCategory === cat && styles.catChipActive]}
+              key={cat.id}
+              style={s.catCard}
+              onPress={() => navigation.navigate('Category', { category: cat })}
             >
-              <Text style={[styles.catText, activeCategory === cat && styles.catTextActive]}>{cat}</Text>
+              <Text style={s.catIcon}>{cat.icon}</Text>
+              <Text style={s.catName} numberOfLines={2}>{cat.name}</Text>
+              <Text style={s.catCount}>{cat.services.length} services</Text>
             </Pressable>
           ))}
+        </View>
+
+        {/* Popular picks */}
+        <Text style={s.sectionTitle}>Popular Picks</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingLeft: 20, paddingRight: 8 }}>
+          {POPULAR.map(p => {
+            const cat = QUASAR_CATEGORIES.find(c => c.id === p.catId)!;
+            return (
+              <Pressable
+                key={p.svcId}
+                style={s.popularCard}
+                onPress={() => navigation.navigate('Category', { category: cat })}
+              >
+                <View style={s.popularIconWrap}>
+                  <Text style={{ fontSize: 28 }}>{p.icon}</Text>
+                </View>
+                <Text style={s.popularName} numberOfLines={2}>{p.label}</Text>
+                <Text style={s.popularPrice}>₹{p.price.toLocaleString('en-IN')}</Text>
+              </Pressable>
+            );
+          })}
         </ScrollView>
 
-        {/* Featured */}
-        {search === '' && activeCategory === 'All' && (
-          <>
-            <Text style={styles.sectionTitle}>⭐ Top Rated</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 16 }}>
-              {featured.map(p => (
-                <Pressable key={p.id} style={styles.featuredCard} onPress={() => navigation.navigate('ProviderDetail', { provider: p })}>
-                  <View style={styles.featuredEmoji}>
-                    <Text style={{ fontSize: 40 }}>{p.emoji}</Text>
-                  </View>
-                  <Text style={styles.featuredName} numberOfLines={1}>{p.name}</Text>
-                  <Text style={styles.featuredCat}>{p.categories[0]}</Text>
-                  <View style={styles.ratingRow}>
-                    <Text style={styles.star}>⭐</Text>
-                    <Text style={styles.ratingText}>{p.rating} ({p.reviewCount})</Text>
-                  </View>
-                </Pressable>
-              ))}
-            </ScrollView>
-          </>
-        )}
-
-        {/* All / Filtered providers */}
-        <Text style={styles.sectionTitle}>
-          {activeCategory === 'All' && search === '' ? '📍 Near You' : `Results (${filtered.length})`}
-        </Text>
-        {filtered.map(p => (
-          <Pressable key={p.id} style={styles.listCard} onPress={() => navigation.navigate('ProviderDetail', { provider: p })}>
-            <View style={styles.listEmoji}>
-              <Text style={{ fontSize: 32 }}>{p.emoji}</Text>
-            </View>
-            <View style={styles.listInfo}>
-              <Text style={styles.listName}>{p.name}</Text>
-              <Text style={styles.listCat}>{p.categories.join(' · ')}</Text>
-              <Text style={styles.listCity}>📍 {p.location.city}</Text>
-              <View style={styles.listBottom}>
-                <Text style={styles.listRating}>⭐ {p.rating} ({p.reviewCount})</Text>
-                <Text style={styles.listPrice}>From ${Math.min(...p.services.map(s => s.price))}</Text>
-              </View>
-            </View>
-          </Pressable>
-        ))}
-        <View style={{ height: 30 }} />
+        {/* Footer tagline */}
+        <View style={s.footer}>
+          <Text style={s.footerText}>✦ Premium · Luxury · Bespoke ✦</Text>
+        </View>
       </ScrollView>
+
+      {/* Floating cart bar */}
+      {totalItems > 0 && (
+        <Pressable style={s.cartBar} onPress={() => navigation.navigate('Cart')}>
+          <View style={s.cartBadge}>
+            <Text style={s.cartBadgeText}>{totalItems}</Text>
+          </View>
+          <Text style={s.cartBarLabel}>{totalItems} service{totalItems > 1 ? 's' : ''} selected</Text>
+          <Text style={s.cartBarPrice}>₹{totalPrice.toLocaleString('en-IN')} →</Text>
+        </Pressable>
+      )}
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+const CARD_W = (width - 52) / 3;
+
+const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.bg },
   scroll: { flex: 1 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8 },
-  greeting: { fontSize: 14, color: COLORS.muted },
-  headline: { fontSize: 26, fontWeight: '700', color: COLORS.text, marginTop: 2 },
-  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.tag, alignItems: 'center', justifyContent: 'center' },
-  searchBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.card, marginHorizontal: 20, marginVertical: 12, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
-  searchIcon: { fontSize: 18, marginRight: 8 },
-  searchInput: { flex: 1, fontSize: 15, color: COLORS.text },
-  categoriesRow: { paddingLeft: 20, marginBottom: 8 },
-  catChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: COLORS.card, marginRight: 8, borderWidth: 1, borderColor: COLORS.border },
-  catChipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
-  catText: { fontSize: 13, color: COLORS.muted, fontWeight: '500' },
-  catTextActive: { color: '#fff' },
-  sectionTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text, paddingHorizontal: 20, marginTop: 16, marginBottom: 12 },
-  featuredCard: { width: 160, backgroundColor: COLORS.card, borderRadius: 18, padding: 14, marginLeft: 20, shadowColor: '#000', shadowOpacity: 0.07, shadowRadius: 10, shadowOffset: { width: 0, height: 3 }, elevation: 3, marginBottom: 4 },
-  featuredEmoji: { width: 60, height: 60, borderRadius: 30, backgroundColor: COLORS.tag, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
-  featuredName: { fontSize: 14, fontWeight: '700', color: COLORS.text },
-  featuredCat: { fontSize: 12, color: COLORS.muted, marginTop: 2 },
-  ratingRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6 },
-  star: { fontSize: 12 },
-  ratingText: { fontSize: 12, color: COLORS.muted, marginLeft: 3 },
-  listCard: { flexDirection: 'row', backgroundColor: COLORS.card, marginHorizontal: 20, marginBottom: 12, borderRadius: 16, padding: 14, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
-  listEmoji: { width: 64, height: 64, borderRadius: 32, backgroundColor: COLORS.tag, alignItems: 'center', justifyContent: 'center', marginRight: 14 },
-  listInfo: { flex: 1 },
-  listName: { fontSize: 16, fontWeight: '700', color: COLORS.text },
-  listCat: { fontSize: 13, color: COLORS.primary, marginTop: 2 },
-  listCity: { fontSize: 12, color: COLORS.muted, marginTop: 2 },
-  listBottom: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
-  listRating: { fontSize: 12, color: COLORS.muted },
-  listPrice: { fontSize: 13, fontWeight: '600', color: COLORS.text },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 12, paddingBottom: 4 },
+  tagline: { fontSize: 12, color: COLORS.textMuted, letterSpacing: 2, textTransform: 'uppercase' },
+  logo: { width: 160, height: 48 },
+  profileBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: COLORS.bgElevated, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.border },
+  hero: { marginHorizontal: 20, marginTop: 16, marginBottom: 8, backgroundColor: COLORS.bgCard, borderRadius: RADIUS.xl, padding: 24, borderWidth: 1, borderColor: COLORS.primaryDim },
+  heroTitle: { fontSize: 26, fontWeight: '800', color: COLORS.text, lineHeight: 34 },
+  heroSub: { fontSize: 14, color: COLORS.textSecondary, marginTop: 6 },
+  heroCta: { marginTop: 18, alignSelf: 'flex-start', backgroundColor: COLORS.primary, paddingHorizontal: 20, paddingVertical: 10, borderRadius: RADIUS.md },
+  heroCtaText: { color: COLORS.bg, fontWeight: '700', fontSize: 14 },
+  sectionTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text, paddingHorizontal: 20, marginTop: 28, marginBottom: 14 },
+  catGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, gap: 8 },
+  catCard: { width: CARD_W, backgroundColor: COLORS.bgCard, borderRadius: RADIUS.lg, padding: 14, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center' },
+  catIcon: { fontSize: 28, marginBottom: 8 },
+  catName: { fontSize: 12, fontWeight: '700', color: COLORS.text, textAlign: 'center' },
+  catCount: { fontSize: 10, color: COLORS.primary, marginTop: 4 },
+  popularCard: { width: 140, backgroundColor: COLORS.bgCard, borderRadius: RADIUS.lg, padding: 14, marginRight: 12, borderWidth: 1, borderColor: COLORS.border },
+  popularIconWrap: { width: 52, height: 52, borderRadius: 26, backgroundColor: COLORS.primaryDim, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
+  popularName: { fontSize: 13, fontWeight: '600', color: COLORS.text, lineHeight: 18 },
+  popularPrice: { fontSize: 13, fontWeight: '700', color: COLORS.primary, marginTop: 6 },
+  footer: { alignItems: 'center', marginTop: 32, marginBottom: 8 },
+  footerText: { fontSize: 12, color: COLORS.textMuted, letterSpacing: 1 },
+  cartBar: { position: 'absolute', bottom: 12, left: 20, right: 20, backgroundColor: COLORS.primary, borderRadius: RADIUS.lg, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, shadowColor: COLORS.primary, shadowOpacity: 0.5, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 8 },
+  cartBadge: { backgroundColor: COLORS.bg, width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  cartBadgeText: { fontSize: 12, fontWeight: '800', color: COLORS.primary },
+  cartBarLabel: { flex: 1, fontSize: 14, fontWeight: '700', color: COLORS.bg },
+  cartBarPrice: { fontSize: 14, fontWeight: '800', color: COLORS.bg },
 });

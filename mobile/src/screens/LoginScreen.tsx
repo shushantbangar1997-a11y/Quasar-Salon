@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet, Alert, KeyboardAvoidingView, Platform, SafeAreaView } from 'react-native';
+import { View, Text, TextInput, Pressable, StyleSheet, Alert, KeyboardAvoidingView, Platform, SafeAreaView, StatusBar, Image } from 'react-native';
 import { signInWithEmailAndPassword, signInAnonymously } from 'firebase/auth';
 import { auth } from '../firebase';
-
-const P = '#E91E8C';
+import { COLORS, RADIUS } from '../theme';
 
 export default function LoginScreen({ navigation }: any) {
   const [email, setEmail] = useState('');
@@ -25,30 +24,28 @@ export default function LoginScreen({ navigation }: any) {
   };
 
   const handleGuest = async () => {
-    if (auth) {
-      try { await signInAnonymously(auth); } catch (_) {}
-    }
+    if (auth) { try { await signInAnonymously(auth); } catch (_) {} }
     navigation.navigate('MainTabs');
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
+    <SafeAreaView style={s.safe}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <View style={s.container}>
-          <Pressable onPress={() => navigation.navigate('MainTabs')} style={{ alignSelf: 'flex-start', marginBottom: 24 }}>
-            <Text style={{ color: P, fontSize: 15, fontWeight: '600' }}>← Back</Text>
+          <Pressable onPress={() => navigation.navigate('MainTabs')} style={s.backRow}>
+            <Text style={s.back}>← Back</Text>
           </Pressable>
 
           <View style={s.logoArea}>
-            <View style={s.logoCircle}><Text style={{ fontSize: 50 }}>💇‍♀️</Text></View>
-            <Text style={s.appName}>BeautyBooking</Text>
+            <Image source={require('../../assets/quasar-logo.jpg')} style={s.logo} resizeMode="contain" />
             <Text style={s.tagline}>Sign in to save your bookings</Text>
           </View>
 
           <TextInput
             style={s.input}
             placeholder="Email"
-            placeholderTextColor="#aaa"
+            placeholderTextColor={COLORS.textMuted}
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
@@ -57,17 +54,15 @@ export default function LoginScreen({ navigation }: any) {
           <TextInput
             style={s.input}
             placeholder="Password"
-            placeholderTextColor="#aaa"
+            placeholderTextColor={COLORS.textMuted}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
             autoCapitalize="none"
           />
 
-          <Pressable style={s.primaryBtn} onPress={handleLogin} disabled={loading}>
-            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>
-              {loading ? 'Signing in…' : 'Sign In'}
-            </Text>
+          <Pressable style={[s.primaryBtn, loading && { opacity: 0.7 }]} onPress={handleLogin} disabled={loading}>
+            <Text style={s.primaryBtnText}>{loading ? 'Signing in…' : 'Sign In'}</Text>
           </Pressable>
 
           <View style={s.divider}>
@@ -77,15 +72,12 @@ export default function LoginScreen({ navigation }: any) {
           </View>
 
           <Pressable style={s.guestBtn} onPress={handleGuest} disabled={loading}>
-            <Text style={{ color: '#1A1A2E', fontSize: 15, fontWeight: '600' }}>Continue as Guest</Text>
+            <Text style={s.guestBtnText}>Continue as Guest</Text>
           </Pressable>
 
-          <Pressable
-            onPress={() => navigation.navigate('SignUp')}
-            style={{ marginTop: 20, alignItems: 'center' }}
-          >
-            <Text style={{ color: '#8E8E93', fontSize: 14 }}>
-              Don't have an account? <Text style={{ color: P, fontWeight: '700' }}>Sign Up</Text>
+          <Pressable onPress={() => navigation.navigate('SignUp')} style={s.signupLink}>
+            <Text style={s.signupText}>
+              Don't have an account? <Text style={{ color: COLORS.primary, fontWeight: '700' }}>Sign Up</Text>
             </Text>
           </Pressable>
         </View>
@@ -95,15 +87,21 @@ export default function LoginScreen({ navigation }: any) {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, paddingHorizontal: 24, paddingTop: 30 },
+  safe: { flex: 1, backgroundColor: COLORS.bg },
+  container: { flex: 1, paddingHorizontal: 24, paddingTop: 20 },
+  backRow: { alignSelf: 'flex-start', marginBottom: 20 },
+  back: { color: COLORS.primary, fontSize: 15, fontWeight: '600' },
   logoArea: { alignItems: 'center', marginBottom: 36 },
-  logoCircle: { width: 90, height: 90, borderRadius: 45, backgroundColor: '#FFF0F7', alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
-  appName: { fontSize: 28, fontWeight: '800', color: '#1A1A2E' },
-  tagline: { fontSize: 14, color: '#8E8E93', marginTop: 6 },
-  input: { height: 54, borderWidth: 1, borderColor: '#E5E5EA', borderRadius: 14, paddingHorizontal: 16, fontSize: 15, marginBottom: 14, backgroundColor: '#F8F9FA', color: '#1A1A2E' },
-  primaryBtn: { height: 54, backgroundColor: P, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
+  logo: { width: 180, height: 54, marginBottom: 12 },
+  tagline: { fontSize: 14, color: COLORS.textSecondary },
+  input: { height: 54, borderWidth: 1, borderColor: COLORS.border, borderRadius: RADIUS.lg, paddingHorizontal: 16, fontSize: 15, marginBottom: 14, backgroundColor: COLORS.bgCard, color: COLORS.text },
+  primaryBtn: { height: 54, backgroundColor: COLORS.primary, borderRadius: RADIUS.lg, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
+  primaryBtnText: { color: COLORS.bg, fontSize: 16, fontWeight: '700' },
   divider: { flexDirection: 'row', alignItems: 'center', marginVertical: 18 },
-  dividerLine: { flex: 1, height: 1, backgroundColor: '#E5E5EA' },
-  dividerText: { marginHorizontal: 12, color: '#8E8E93', fontSize: 13 },
-  guestBtn: { height: 54, borderWidth: 1.5, borderColor: '#E5E5EA', borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  dividerLine: { flex: 1, height: 1, backgroundColor: COLORS.border },
+  dividerText: { marginHorizontal: 12, color: COLORS.textMuted, fontSize: 13 },
+  guestBtn: { height: 54, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: RADIUS.lg, alignItems: 'center', justifyContent: 'center' },
+  guestBtnText: { color: COLORS.text, fontSize: 15, fontWeight: '600' },
+  signupLink: { marginTop: 20, alignItems: 'center' },
+  signupText: { color: COLORS.textSecondary, fontSize: 14 },
 });
