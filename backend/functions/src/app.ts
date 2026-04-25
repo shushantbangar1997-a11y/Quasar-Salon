@@ -410,14 +410,37 @@ app.post('/bookings', authenticateUser, async (req, res) => {
     const staffDoc = await db.collection('staff').doc(staffId).get();
     if (!staffDoc.exists) return void badRequest(res, 'Staff member not found');
 
-    // Determine how many 30-min slots the booking spans based on total service duration
-    const totalDuration = quasarBody.services.reduce((sum, s) => sum + (s.durationMins ?? 30), 0);
+    const staff = staffDoc.data() as QuasarStaff;
+    if (!staff.available) return void badRequest(res, 'This staff member is not currently available for bookings');
+
+    // Validate day schedule
+    const dayName = getDayName(dateStr);
+    const daySchedule = staff.schedule?.[dayName];
+    if (!daySchedule) {
+      return void badRequest(res, `${staff.name ?? 'This stylist'} does not work on ${dayName}s`);
+    }
+    const { start: scheduleStart, end: scheduleEnd } = daySchedule;
+
+    // Determine how many 30-min slots the booking spans; multiply durationMins by qty
+    const totalDuration = quasarBody.services.reduce(
+      (sum, s) => sum + (s.durationMins ?? 30) * Math.max(1, s.qty ?? 1),
+      0
+    );
     const slotsNeeded = Math.max(1, Math.ceil(totalDuration / 30));
 
     const startIdx = QUASAR_TIME_SLOTS.indexOf(timeSlot);
     if (startIdx === -1) return void badRequest(res, 'Invalid time slot');
     if (startIdx + slotsNeeded > QUASAR_TIME_SLOTS.length) {
       return void badRequest(res, 'Booking would extend past closing time. Please choose an earlier slot.');
+    }
+
+    // Verify all consecutive slots fall within the staff member's working hours
+    for (let i = 0; i < slotsNeeded; i++) {
+      const checkSlot = QUASAR_TIME_SLOTS[startIdx + i];
+      const slot24 = slotTo24h(checkSlot);
+      if (slot24 < scheduleStart || slot24 >= scheduleEnd) {
+        return void badRequest(res, 'One or more slots fall outside the stylist\'s working hours. Please choose a different time.');
+      }
     }
 
     const slotsToBlock = QUASAR_TIME_SLOTS.slice(startIdx, startIdx + slotsNeeded);
