@@ -1,13 +1,12 @@
 import React from 'react';
 import {
   View, Text, ScrollView, Pressable, StyleSheet,
-  SafeAreaView, StatusBar, Image, Dimensions,
+  SafeAreaView, StatusBar, Image,
 } from 'react-native';
 import { QUASAR_CATEGORIES } from '../quasarData';
 import { useCart } from '../CartContext';
-import { COLORS, FONTS, RADIUS } from '../theme';
-
-const { width } = Dimensions.get('window');
+import { COLORS, RADIUS } from '../theme';
+import { HomeScreenProps } from '../navigation';
 
 const POPULAR = [
   { catId: 'hair-care', svcId: 'hc-8', label: "Men's Haircut", price: 599, icon: '✂️' },
@@ -18,7 +17,7 @@ const POPULAR = [
   { catId: 'body', svcId: 'bd-1', label: 'Swedish Therapy', price: 2500, icon: '🛁' },
 ];
 
-export default function HomeScreen({ navigation }: any) {
+export default function HomeScreen({ navigation }: HomeScreenProps) {
   const { totalItems, totalPrice } = useCart();
 
   return (
@@ -52,7 +51,7 @@ export default function HomeScreen({ navigation }: any) {
 
         {/* Service categories */}
         <Text style={s.sectionTitle}>Our Services</Text>
-        <View style={s.catGrid}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingLeft: 20, paddingRight: 8 }}>
           {QUASAR_CATEGORIES.map(cat => (
             <Pressable
               key={cat.id}
@@ -64,7 +63,7 @@ export default function HomeScreen({ navigation }: any) {
               <Text style={s.catCount}>{cat.services.length} services</Text>
             </Pressable>
           ))}
-        </View>
+        </ScrollView>
 
         {/* Popular picks */}
         <Text style={s.sectionTitle}>Popular Picks</Text>
@@ -107,8 +106,6 @@ export default function HomeScreen({ navigation }: any) {
   );
 }
 
-const CARD_W = (width - 52) / 3;
-
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.bg },
   scroll: { flex: 1 },
@@ -122,8 +119,7 @@ const s = StyleSheet.create({
   heroCta: { marginTop: 18, alignSelf: 'flex-start', backgroundColor: COLORS.primary, paddingHorizontal: 20, paddingVertical: 10, borderRadius: RADIUS.md },
   heroCtaText: { color: COLORS.bg, fontWeight: '700', fontSize: 14 },
   sectionTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text, paddingHorizontal: 20, marginTop: 28, marginBottom: 14 },
-  catGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, gap: 8 },
-  catCard: { width: CARD_W, backgroundColor: COLORS.bgCard, borderRadius: RADIUS.lg, padding: 14, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center' },
+  catCard: { width: 90, backgroundColor: COLORS.bgCard, borderRadius: RADIUS.lg, padding: 14, marginRight: 10, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center' },
   catIcon: { fontSize: 28, marginBottom: 8 },
   catName: { fontSize: 12, fontWeight: '700', color: COLORS.text, textAlign: 'center' },
   catCount: { fontSize: 10, color: COLORS.primary, marginTop: 4 },

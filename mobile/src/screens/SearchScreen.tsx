@@ -3,6 +3,7 @@ import { View, Text, TextInput, ScrollView, Pressable, StyleSheet, SafeAreaView,
 import { QUASAR_CATEGORIES, QuasarService } from '../quasarData';
 import { useCart } from '../CartContext';
 import { COLORS, RADIUS } from '../theme';
+import { SearchScreenProps } from '../navigation';
 
 interface SearchResult {
   service: QuasarService;
@@ -11,7 +12,7 @@ interface SearchResult {
   catIcon: string;
 }
 
-export default function SearchScreen({ navigation }: any) {
+export default function SearchScreen({ navigation }: SearchScreenProps) {
   const [query, setQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
   const { addItem, removeItem, items, totalItems, totalPrice } = useCart();

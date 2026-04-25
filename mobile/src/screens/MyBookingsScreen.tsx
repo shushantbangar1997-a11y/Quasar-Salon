@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, SafeAreaView, StatusBar } from 'react-native';
 import { useBookings, ConfirmedBooking } from '../BookingsContext';
 import { COLORS, RADIUS } from '../theme';
+import { MyBookingsScreenProps } from '../navigation';
 
 const STATUS: Record<string, { bg: string; label: string; color: string }> = {
   confirmed: { bg: '#0A2010', label: '✓ Confirmed', color: '#4CAF50' },
@@ -10,7 +11,7 @@ const STATUS: Record<string, { bg: string; label: string; color: string }> = {
   cancelled: { bg: COLORS.errorBg, label: '✗ Cancelled', color: COLORS.error },
 };
 
-export default function MyBookingsScreen({ navigation }: any) {
+export default function MyBookingsScreen({ navigation }: MyBookingsScreenProps) {
   const { bookings } = useBookings();
   const [tab, setTab] = useState<'upcoming' | 'past'>('upcoming');
 

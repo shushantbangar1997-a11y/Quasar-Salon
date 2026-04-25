@@ -4,10 +4,10 @@ import {
   SafeAreaView, StatusBar,
 } from 'react-native';
 import { COLORS, RADIUS } from '../theme';
-import { ConfirmedBooking } from '../BookingsContext';
+import { BookingSuccessScreenProps } from '../navigation';
 
-export default function BookingSuccessScreen({ route, navigation }: any) {
-  const { booking }: { booking: ConfirmedBooking } = route.params;
+export default function BookingSuccessScreen({ route, navigation }: BookingSuccessScreenProps) {
+  const { booking } = route.params;
 
   return (
     <SafeAreaView style={s.safe}>

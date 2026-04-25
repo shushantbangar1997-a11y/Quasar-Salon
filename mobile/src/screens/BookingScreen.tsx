@@ -7,6 +7,7 @@ import { useCart } from '../CartContext';
 import { useBookings } from '../BookingsContext';
 import { QUASAR_STAFF, TIME_SLOTS, DEMO_BUSY_SLOTS, StaffMember } from '../quasarData';
 import { COLORS, RADIUS } from '../theme';
+import { BookingScreenProps } from '../navigation';
 
 const DATES = Array.from({ length: 14 }, (_, i) => {
   const d = new Date();
@@ -17,18 +18,23 @@ const DATES = Array.from({ length: 14 }, (_, i) => {
   };
 });
 
-type Step = 'date' | 'stylist' | 'time' | 'confirm';
+type Step = 'date' | 'time' | 'stylist' | 'confirm';
 
-export default function BookingScreen({ navigation }: any) {
+export default function BookingScreen({ navigation }: BookingScreenProps) {
   const { items, totalPrice, clearCart } = useCart();
   const { addBooking } = useBookings();
   const [step, setStep] = useState<Step>('date');
   const [selectedDate, setSelectedDate] = useState(DATES[0]);
-  const [selectedStylist, setSelectedStylist] = useState<StaffMember | null>(null);
   const [selectedTime, setSelectedTime] = useState('');
+  const [selectedStylist, setSelectedStylist] = useState<StaffMember | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const busySlots = selectedStylist ? (DEMO_BUSY_SLOTS[selectedStylist.id] || []) : [];
+  const availableStaff = QUASAR_STAFF.filter(staff => {
+    if (!staff.available) return false;
+    if (!selectedTime) return true;
+    const busy = DEMO_BUSY_SLOTS[staff.id] || [];
+    return !busy.includes(selectedTime);
+  });
 
   const handleConfirm = async () => {
     setLoading(true);
@@ -43,15 +49,13 @@ export default function BookingScreen({ navigation }: any) {
     });
     clearCart();
     setLoading(false);
-    navigation.navigate('BookingSuccess', {
-      booking,
-    });
+    navigation.navigate('BookingSuccess', { booking });
   };
 
   const STEPS: { key: Step; label: string; num: number }[] = [
     { key: 'date', label: 'Date', num: 1 },
-    { key: 'stylist', label: 'Stylist', num: 2 },
-    { key: 'time', label: 'Time', num: 3 },
+    { key: 'time', label: 'Time', num: 2 },
+    { key: 'stylist', label: 'Stylist', num: 3 },
     { key: 'confirm', label: 'Confirm', num: 4 },
   ];
 
@@ -66,7 +70,6 @@ export default function BookingScreen({ navigation }: any) {
     <SafeAreaView style={s.safe}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
 
-      {/* Header */}
       <View style={s.header}>
         <Pressable onPress={goBack}>
           <Text style={s.back}>←</Text>
@@ -74,7 +77,6 @@ export default function BookingScreen({ navigation }: any) {
         <Text style={s.headerTitle}>Book Appointment</Text>
       </View>
 
-      {/* Step indicator */}
       <View style={s.stepRow}>
         {STEPS.map((st, i) => (
           <React.Fragment key={st.key}>
@@ -93,7 +95,6 @@ export default function BookingScreen({ navigation }: any) {
 
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20, paddingBottom: 100 }}>
 
-        {/* Services summary strip */}
         <View style={s.serviceStrip}>
           <Text style={s.serviceStripTitle}>
             {items.length} service{items.length > 1 ? 's' : ''} · ₹{totalPrice.toLocaleString('en-IN')}
@@ -107,7 +108,6 @@ export default function BookingScreen({ navigation }: any) {
           </ScrollView>
         </View>
 
-        {/* STEP 1: Date */}
         {step === 'date' && (
           <View>
             <Text style={s.stepTitle}>Select a Date</Text>
@@ -131,25 +131,49 @@ export default function BookingScreen({ navigation }: any) {
           </View>
         )}
 
-        {/* STEP 2: Stylist */}
+        {step === 'time' && (
+          <View>
+            <Text style={s.stepTitle}>Select a Time Slot</Text>
+            <Text style={s.stepSub}>{selectedDate.label}</Text>
+            <View style={s.timeGrid}>
+              {TIME_SLOTS.map(t => {
+                const active = selectedTime === t;
+                return (
+                  <Pressable
+                    key={t}
+                    onPress={() => setSelectedTime(t)}
+                    style={[s.timeChip, active && s.timeChipActive]}
+                  >
+                    <Text style={[s.timeText, active && s.timeTextActive]}>{t}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
         {step === 'stylist' && (
           <View>
             <Text style={s.stepTitle}>Choose Your Stylist</Text>
-            <Text style={s.stepSub}>Select who you'd like to see on {selectedDate.label}</Text>
+            <Text style={s.stepSub}>
+              Available on {selectedDate.label} at {selectedTime}
+              {' '}({availableStaff.length} stylists free)
+            </Text>
             {QUASAR_STAFF.map(staff => {
+              const isBusy = (DEMO_BUSY_SLOTS[staff.id] || []).includes(selectedTime) || !staff.available;
               const active = selectedStylist?.id === staff.id;
               return (
                 <Pressable
                   key={staff.id}
-                  onPress={() => staff.available && setSelectedStylist(staff)}
-                  disabled={!staff.available}
-                  style={[s.stylistCard, active && s.stylistCardActive, !staff.available && s.stylistCardBusy]}
+                  onPress={() => !isBusy && setSelectedStylist(staff)}
+                  disabled={isBusy}
+                  style={[s.stylistCard, active && s.stylistCardActive, isBusy && s.stylistCardBusy]}
                 >
                   <View style={[s.stylistEmoji, active && { backgroundColor: COLORS.primary }]}>
                     <Text style={{ fontSize: 28 }}>{staff.emoji}</Text>
                   </View>
                   <View style={{ flex: 1, marginLeft: 14 }}>
-                    <Text style={[s.stylistName, !staff.available && s.textDim]}>{staff.name}</Text>
+                    <Text style={[s.stylistName, isBusy && s.textDim]}>{staff.name}</Text>
                     <Text style={s.stylistRole}>{staff.role}</Text>
                     <Text style={s.stylistExp}>{staff.experience} experience</Text>
                     <View style={s.specialtyRow}>
@@ -160,9 +184,9 @@ export default function BookingScreen({ navigation }: any) {
                       ))}
                     </View>
                   </View>
-                  <View style={[s.availBadge, staff.available ? s.availBadgeOn : s.availBadgeOff]}>
-                    <Text style={[s.availText, !staff.available && { color: COLORS.error }]}>
-                      {staff.available ? 'Available' : 'Busy'}
+                  <View style={[s.availBadge, isBusy ? s.availBadgeOff : s.availBadgeOn]}>
+                    <Text style={[s.availText, isBusy && { color: COLORS.error }]}>
+                      {isBusy ? 'Busy' : 'Free'}
                     </Text>
                   </View>
                 </Pressable>
@@ -171,39 +195,13 @@ export default function BookingScreen({ navigation }: any) {
           </View>
         )}
 
-        {/* STEP 3: Time — busy slots are now filtered by selected stylist */}
-        {step === 'time' && (
-          <View>
-            <Text style={s.stepTitle}>Select a Time Slot</Text>
-            <Text style={s.stepSub}>{selectedDate.label} · {selectedStylist?.name}</Text>
-            <View style={s.timeGrid}>
-              {TIME_SLOTS.map(t => {
-                const busy = busySlots.includes(t);
-                const active = selectedTime === t;
-                return (
-                  <Pressable
-                    key={t}
-                    onPress={() => !busy && setSelectedTime(t)}
-                    disabled={busy}
-                    style={[s.timeChip, active && s.timeChipActive, busy && s.timeChipBusy]}
-                  >
-                    <Text style={[s.timeText, active && s.timeTextActive, busy && s.timeTextBusy]}>{t}</Text>
-                    {busy && <Text style={s.busyLabel}>Busy</Text>}
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
-        )}
-
-        {/* STEP 4: Confirm */}
         {step === 'confirm' && (
           <View>
             <Text style={s.stepTitle}>Booking Summary</Text>
             <View style={s.summaryBox}>
               <SumRow label="Date" value={selectedDate.label} />
-              <SumRow label="Stylist" value={selectedStylist?.name || 'Any Available'} />
               <SumRow label="Time" value={selectedTime} />
+              <SumRow label="Stylist" value={selectedStylist?.name ?? 'Any Available'} />
               <View style={s.divider} />
               {items.map(item => (
                 <View key={item.service.id} style={s.sumSvcRow}>
@@ -223,19 +221,9 @@ export default function BookingScreen({ navigation }: any) {
         )}
       </ScrollView>
 
-      {/* CTA footer */}
       <View style={s.cta}>
         {step === 'date' && (
-          <Pressable style={s.ctaBtn} onPress={() => setStep('stylist')}>
-            <Text style={s.ctaBtnText}>Continue to Stylist →</Text>
-          </Pressable>
-        )}
-        {step === 'stylist' && (
-          <Pressable
-            style={[s.ctaBtn, !selectedStylist && s.ctaBtnDisabled]}
-            disabled={!selectedStylist}
-            onPress={() => setStep('time')}
-          >
+          <Pressable style={s.ctaBtn} onPress={() => setStep('time')}>
             <Text style={s.ctaBtnText}>Continue to Time →</Text>
           </Pressable>
         )}
@@ -243,6 +231,15 @@ export default function BookingScreen({ navigation }: any) {
           <Pressable
             style={[s.ctaBtn, !selectedTime && s.ctaBtnDisabled]}
             disabled={!selectedTime}
+            onPress={() => setStep('stylist')}
+          >
+            <Text style={s.ctaBtnText}>Choose Stylist →</Text>
+          </Pressable>
+        )}
+        {step === 'stylist' && (
+          <Pressable
+            style={[s.ctaBtn, !selectedStylist && s.ctaBtnDisabled]}
+            disabled={!selectedStylist}
             onPress={() => setStep('confirm')}
           >
             <Text style={s.ctaBtnText}>Review Booking →</Text>
@@ -297,9 +294,14 @@ const s = StyleSheet.create({
   dateCircleText: { fontSize: 18, fontWeight: '800', color: COLORS.text },
   dateCircleTextActive: { color: COLORS.bg },
   dateLabel: { fontSize: 14, fontWeight: '600', color: COLORS.text },
+  timeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  timeChip: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: RADIUS.sm, backgroundColor: COLORS.bgCard, borderWidth: 1, borderColor: COLORS.border, minWidth: 88, alignItems: 'center' },
+  timeChipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  timeText: { fontSize: 13, color: COLORS.text, fontWeight: '500' },
+  timeTextActive: { color: COLORS.bg, fontWeight: '700' },
   stylistCard: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: COLORS.bgCard, borderRadius: RADIUS.lg, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: COLORS.border },
   stylistCardActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primaryDim },
-  stylistCardBusy: { opacity: 0.5 },
+  stylistCardBusy: { opacity: 0.45 },
   stylistEmoji: { width: 56, height: 56, borderRadius: 28, backgroundColor: COLORS.bgElevated, alignItems: 'center', justifyContent: 'center' },
   stylistName: { fontSize: 16, fontWeight: '700', color: COLORS.text },
   stylistRole: { fontSize: 13, color: COLORS.primary, marginTop: 2 },
@@ -312,14 +314,6 @@ const s = StyleSheet.create({
   availBadgeOn: { backgroundColor: '#0A2010' },
   availBadgeOff: { backgroundColor: COLORS.errorBg },
   availText: { fontSize: 11, fontWeight: '700', color: COLORS.primary },
-  timeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  timeChip: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: RADIUS.sm, backgroundColor: COLORS.bgCard, borderWidth: 1, borderColor: COLORS.border, minWidth: 88, alignItems: 'center' },
-  timeChipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
-  timeChipBusy: { backgroundColor: COLORS.bgElevated, borderColor: COLORS.border, opacity: 0.45 },
-  timeText: { fontSize: 13, color: COLORS.text, fontWeight: '500' },
-  timeTextActive: { color: COLORS.bg, fontWeight: '700' },
-  timeTextBusy: { color: COLORS.textMuted },
-  busyLabel: { fontSize: 10, color: COLORS.error, marginTop: 2 },
   summaryBox: { backgroundColor: COLORS.bgCard, borderRadius: RADIUS.xl, padding: 20, borderWidth: 1, borderColor: COLORS.border },
   sumRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   sumLabel: { fontSize: 14, color: COLORS.textSecondary },

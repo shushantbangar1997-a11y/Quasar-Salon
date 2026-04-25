@@ -3,8 +3,9 @@ import { View, Text, TextInput, Pressable, StyleSheet, Alert, KeyboardAvoidingVi
 import { signInWithEmailAndPassword, signInAnonymously } from 'firebase/auth';
 import { auth } from '../firebase';
 import { COLORS, RADIUS } from '../theme';
+import { LoginScreenProps } from '../navigation';
 
-export default function LoginScreen({ navigation }: any) {
+export default function LoginScreen({ navigation }: LoginScreenProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -16,8 +17,8 @@ export default function LoginScreen({ navigation }: any) {
     try {
       await signInWithEmailAndPassword(auth, email, password);
       navigation.navigate('MainTabs');
-    } catch (e: any) {
-      Alert.alert('Login Failed', e.message);
+    } catch (e: unknown) {
+      Alert.alert('Login Failed', e instanceof Error ? e.message : 'Login failed');
     } finally {
       setLoading(false);
     }

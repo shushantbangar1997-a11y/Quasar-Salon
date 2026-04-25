@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "BeautyBooking",
-    "slug": "beautybooking",
+    "name": "Quasar Salon",
+    "slug": "quasar-salon",
     "version": "1.0.0",
     "sdkVersion": "51.0.0",
     "platforms": [
@@ -10,6 +10,11 @@
       "web"
     ],
     "orientation": "portrait",
-    "userInterfaceStyle": "automatic"
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "backgroundColor": "#0D0D0D",
+      "resizeMode": "contain",
+      "image": "./assets/quasar-logo.jpg"
+    }
   }
 }

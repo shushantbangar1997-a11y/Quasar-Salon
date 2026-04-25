@@ -3,8 +3,9 @@ import { View, Text, TextInput, Pressable, StyleSheet, Alert, KeyboardAvoidingVi
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../firebase';
 import { COLORS, RADIUS } from '../theme';
+import { SignUpScreenProps } from '../navigation';
 
-export default function SignUpScreen({ navigation }: any) {
+export default function SignUpScreen({ navigation }: SignUpScreenProps) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -20,8 +21,8 @@ export default function SignUpScreen({ navigation }: any) {
     try {
       await createUserWithEmailAndPassword(auth, email, password);
       navigation.navigate('MainTabs');
-    } catch (e: any) {
-      Alert.alert('Sign Up Failed', e.message);
+    } catch (e: unknown) {
+      Alert.alert('Sign Up Failed', e instanceof Error ? e.message : 'Sign up failed');
     } finally {
       setLoading(false);
     }

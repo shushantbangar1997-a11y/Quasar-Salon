@@ -5,8 +5,9 @@ import {
 } from 'react-native';
 import { useCart } from '../CartContext';
 import { COLORS, RADIUS } from '../theme';
+import { CartScreenProps } from '../navigation';
 
-export default function CartScreen({ navigation }: any) {
+export default function CartScreen({ navigation }: CartScreenProps) {
   const { items, addItem, removeItem, clearCart, totalItems, totalPrice } = useCart();
 
   if (items.length === 0) {

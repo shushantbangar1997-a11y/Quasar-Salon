@@ -3,6 +3,7 @@ import { View, Text, ScrollView, Pressable, StyleSheet, SafeAreaView, StatusBar,
 import { signOut } from 'firebase/auth';
 import { auth } from '../firebase';
 import { COLORS, RADIUS } from '../theme';
+import { ProfileScreenProps } from '../navigation';
 
 const MENU_ITEMS = [
   { icon: '📅', label: 'My Bookings', screen: 'Bookings' },
@@ -12,7 +13,7 @@ const MENU_ITEMS = [
   { icon: '⭐', label: 'Rate the App', screen: null },
 ];
 
-export default function ProfileScreen({ navigation }: any) {
+export default function ProfileScreen({ navigation }: ProfileScreenProps) {
   const [notifications, setNotifications] = useState(true);
   const user = auth?.currentUser;
   const isAnon = !user || user.isAnonymous;

@@ -3,12 +3,13 @@ import {
   View, Text, ScrollView, Pressable, StyleSheet,
   SafeAreaView, StatusBar,
 } from 'react-native';
-import { QuasarCategory, QuasarService } from '../quasarData';
+import { QuasarService } from '../quasarData';
 import { useCart } from '../CartContext';
 import { COLORS, RADIUS } from '../theme';
+import { CategoryScreenProps } from '../navigation';
 
-export default function CategoryScreen({ route, navigation }: any) {
-  const { category }: { category: QuasarCategory } = route.params;
+export default function CategoryScreen({ route, navigation }: CategoryScreenProps) {
+  const { category } = route.params;
   const { addItem, removeItem, items, totalItems, totalPrice } = useCart();
   const [filter, setFilter] = useState<'All' | 'Women' | 'Men' | 'Both'>('All');
 
