@@ -35,11 +35,12 @@ name = "Start application"
 author = "agent"
 
 [workflows.workflow.metadata]
-outputType = "console"
+outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd mobile && npx expo start --tunnel"
+args = "cd mobile && npx expo start --tunnel --web --port 5000"
+waitForPort = 5000
 
 [[workflows.workflow]]
 name = "backend-typecheck"
@@ -80,12 +81,12 @@ localPort = 5000
 externalPort = 80
 
 [[ports]]
-localPort = 5001
-externalPort = 3000
-
-[[ports]]
 localPort = 8080
 externalPort = 8080
+
+[[ports]]
+localPort = 8081
+externalPort = 8081
 
 [deployment]
 deploymentTarget = "static"

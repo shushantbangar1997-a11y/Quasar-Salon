@@ -1,7 +1,7 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View, Text, Pressable, StyleSheet, Animated,
-  Dimensions, Platform,
+  Dimensions, Platform, PanResponder,
 } from 'react-native';
 import Svg, { Path, Circle, Line, Rect } from 'react-native-svg';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
@@ -12,6 +12,7 @@ const PILL_W = Math.min(SCREEN_W - 40, 340);
 const TAB_W = PILL_W / 4;
 const INDICATOR_W = TAB_W - 10;
 const INDICATOR_H = 42;
+const HIDE_DIST = 120;
 
 function HomeIcon({ color }: { color: string }) {
   return (
@@ -55,10 +56,72 @@ const TAB_ICONS = [HomeIcon, SearchIcon, BookingsIcon, ProfileIcon];
 const TAB_LABELS = ['Home', 'Search', 'Bookings', 'Profile'];
 
 export default function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
-  const indicatorX = useRef(new Animated.Value(state.index * TAB_W + 5)).current;
+  const indicatorX    = useRef(new Animated.Value(state.index * TAB_W + 5)).current;
   const tooltipOpacity = useRef(new Animated.Value(1)).current;
-  const tooltipY = useRef(new Animated.Value(0)).current;
-  const prevIndex = useRef(state.index);
+  const tooltipY      = useRef(new Animated.Value(0)).current;
+  const barY          = useRef(new Animated.Value(0)).current;
+  const prevIndex     = useRef(state.index);
+  const [hidden, setHidden] = useState(false);
+  const isHiddenRef   = useRef(false);
+
+  const hideBar = () => {
+    Animated.spring(barY, {
+      toValue: HIDE_DIST,
+      useNativeDriver: true,
+      tension: 120,
+      friction: 14,
+    }).start(() => {
+      isHiddenRef.current = true;
+      setHidden(true);
+    });
+  };
+
+  const showBar = () => {
+    isHiddenRef.current = false;
+    setHidden(false);
+    Animated.spring(barY, {
+      toValue: 0,
+      useNativeDriver: true,
+      tension: 180,
+      friction: 18,
+    }).start();
+  };
+
+  /* ── Drag-down-to-hide gesture on the pill ── */
+  const dragPan = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, g) =>
+        g.dy > 8 && Math.abs(g.dy) > Math.abs(g.dx),
+      onPanResponderMove: (_, g) => {
+        if (g.dy > 0) barY.setValue(g.dy);
+      },
+      onPanResponderRelease: (_, g) => {
+        if (g.dy > 40 || g.vy > 0.6) {
+          hideBar();
+        } else {
+          Animated.spring(barY, {
+            toValue: 0,
+            useNativeDriver: true,
+            tension: 180,
+            friction: 18,
+          }).start();
+        }
+      },
+    })
+  ).current;
+
+  /* ── Swipe-up-from-bottom-edge gesture (when hidden) ── */
+  const edgePan = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, g) =>
+        g.dy < -8 && Math.abs(g.dy) > Math.abs(g.dx),
+      onPanResponderRelease: (_, g) => {
+        if (g.dy < -20 || g.vy < -0.4) showBar();
+      },
+    })
+  ).current;
 
   useEffect(() => {
     Animated.spring(indicatorX, {
@@ -90,9 +153,7 @@ export default function FloatingTabBar({ state, navigation }: BottomTabBarProps)
 
   const handlePress = (index: number, routeName: string) => {
     const event = navigation.emit({ type: 'tabPress', target: state.routes[index].key, canPreventDefault: true });
-    if (!event.defaultPrevented) {
-      navigation.navigate(routeName);
-    }
+    if (!event.defaultPrevented) navigation.navigate(routeName);
   };
 
   const activeLabel = TAB_LABELS[state.index];
@@ -102,54 +163,64 @@ export default function FloatingTabBar({ state, navigation }: BottomTabBarProps)
   return (
     <View style={s.wrapper} pointerEvents="box-none">
       {/* Floating tooltip label */}
+      {!hidden && (
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            s.tooltip,
+            {
+              opacity: tooltipOpacity,
+              transform: [{ translateY: tooltipY }],
+              left: tooltipLeftOffset,
+            },
+          ]}
+        >
+          <Text style={s.tooltipText}>{activeLabel}</Text>
+        </Animated.View>
+      )}
+
+      {/* Pill container – drag down to hide */}
       <Animated.View
-        pointerEvents="none"
-        style={[
-          s.tooltip,
-          {
-            opacity: tooltipOpacity,
-            transform: [{ translateY: tooltipY }],
-            left: tooltipLeftOffset,
-          },
-        ]}
+        style={[s.pillWrap, { transform: [{ translateY: barY }] }]}
+        {...dragPan.panHandlers}
       >
-        <Text style={s.tooltipText}>{activeLabel}</Text>
+        {/* Pull-handle hint */}
+        <View style={s.handle} pointerEvents="none" />
+
+        <View style={s.pill}>
+          {/* Sliding active indicator */}
+          <Animated.View
+            style={[s.indicator, { transform: [{ translateX: indicatorX }] }]}
+          />
+
+          {/* Tab buttons */}
+          {state.routes.map((route, index) => {
+            const isActive = state.index === index;
+            const IconComponent = TAB_ICONS[index];
+            const color = isActive ? COLORS.primary : COLORS.textMuted;
+
+            return (
+              <Pressable
+                key={route.key}
+                style={s.tab}
+                onPress={() => handlePress(index, route.name)}
+                android_ripple={{ color: COLORS.primaryDim, borderless: true, radius: 24 }}
+              >
+                <Animated.View style={{ transform: [{ scale: isActive ? 1.1 : 1 }] }}>
+                  <IconComponent color={color} />
+                </Animated.View>
+              </Pressable>
+            );
+          })}
+        </View>
       </Animated.View>
 
-      {/* Pill container */}
-      <View style={s.pill}>
-        {/* Sliding active indicator */}
-        <Animated.View
-          style={[
-            s.indicator,
-            { transform: [{ translateX: indicatorX }] },
-          ]}
-        />
-
-        {/* Tab buttons */}
-        {state.routes.map((route, index) => {
-          const isActive = state.index === index;
-          const IconComponent = TAB_ICONS[index];
-          const color = isActive ? COLORS.primary : COLORS.textMuted;
-
-          return (
-            <Pressable
-              key={route.key}
-              style={s.tab}
-              onPress={() => handlePress(index, route.name)}
-              android_ripple={{ color: COLORS.primaryDim, borderless: true, radius: 24 }}
-            >
-              <Animated.View
-                style={{
-                  transform: [{ scale: isActive ? 1.1 : 1 }],
-                }}
-              >
-                <IconComponent color={color} />
-              </Animated.View>
-            </Pressable>
-          );
-        })}
-      </View>
+      {/* Bottom edge swipe zone – only visible/active when bar is hidden */}
+      {hidden && (
+        <View style={s.edgeZone} {...edgePan.panHandlers}>
+          <View style={s.edgePeek} />
+        </View>
+      )}
     </View>
   );
 }
@@ -182,6 +253,16 @@ const s = StyleSheet.create({
     color: COLORS.text,
     letterSpacing: 0.2,
   },
+  pillWrap: {
+    alignItems: 'center',
+  },
+  handle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: COLORS.border,
+    marginBottom: 5,
+  },
   pill: {
     width: PILL_W,
     height: 58,
@@ -212,5 +293,22 @@ const s = StyleSheet.create({
     height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  edgeZone: {
+    position: 'absolute',
+    bottom: -(Platform.OS === 'ios' ? 28 : 20),
+    left: 0,
+    right: 0,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    paddingBottom: 8,
+  },
+  edgePeek: {
+    width: 48,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: COLORS.primary,
+    opacity: 0.5,
   },
 });
