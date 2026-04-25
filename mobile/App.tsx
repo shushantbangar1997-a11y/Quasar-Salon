@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Text } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -8,8 +7,8 @@ import { auth } from './src/firebase';
 import { CartProvider } from './src/CartContext';
 import { BookingsProvider } from './src/BookingsContext';
 import { AdminProvider } from './src/AdminContext';
-import { COLORS } from './src/theme';
 import { RootStackParamList, TabParamList } from './src/navigation';
+import FloatingTabBar from './src/components/FloatingTabBar';
 
 import HomeScreen from './src/screens/HomeScreen';
 import SearchScreen from './src/screens/SearchScreen';
@@ -27,32 +26,12 @@ import AdminScreen from './src/screens/AdminScreen';
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<TabParamList>();
 
-const TAB_ICONS: Record<string, string> = {
-  Home: '🏠',
-  Search: '🔍',
-  Bookings: '📅',
-  Profile: '👤',
-};
-
 function MainTabs() {
   return (
     <Tab.Navigator
-      screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarActiveTintColor: COLORS.primary,
-        tabBarInactiveTintColor: COLORS.textMuted,
-        tabBarStyle: {
-          backgroundColor: COLORS.bgCard,
-          borderTopColor: COLORS.border,
-          borderTopWidth: 1,
-          height: 60,
-          paddingBottom: 8,
-          paddingTop: 6,
-        },
-        tabBarIcon: ({ color, size }: { color: string; size: number }) => (
-          <Text style={{ fontSize: size - 4, color }}>{TAB_ICONS[route.name]}</Text>
-        ),
-      })}
+      tabBar={props => <FloatingTabBar {...props} />}
+      screenOptions={{ headerShown: false }}
+      sceneContainerStyle={{ paddingBottom: 88 }}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Search" component={SearchScreen} />
