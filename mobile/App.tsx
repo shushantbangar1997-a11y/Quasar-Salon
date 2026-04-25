@@ -47,7 +47,7 @@ export default function App() {
       const health = await apiGet('/health');
       console.log('health:', health);
       const list = await apiGet('/providers');
-      setProviders(list);
+      setProviders(Array.isArray(list) ? list : []);
     } catch (e: any) {
       setError(e.message || String(e));
     }
