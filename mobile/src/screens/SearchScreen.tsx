@@ -39,42 +39,43 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
     <SafeAreaView style={s.safe}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.bg} />
 
-      <View style={s.header}>
-        <Text style={s.title}>Search Services</Text>
+      {/* Compact inline bar: search + category chips on one row */}
+      <View style={s.topBar}>
         <View style={s.searchBox}>
           <Text style={s.searchIcon}>🔍</Text>
           <TextInput
             style={s.input}
-            placeholder="Hair, nails, facials, massage..."
+            placeholder="Search..."
             placeholderTextColor={COLORS.textMuted}
             value={query}
             onChangeText={setQuery}
           />
           {query.length > 0 && (
             <Pressable onPress={() => setQuery('')}>
-              <Text style={{ color: COLORS.textMuted, fontSize: 18 }}>✕</Text>
+              <Text style={{ color: COLORS.textMuted, fontSize: 14 }}>✕</Text>
             </Pressable>
           )}
         </View>
-      </View>
 
-      {/* Category filter */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={s.catScroll}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 10, gap: 8 }}
-      >
-        {allCategories.map(cat => (
-          <Pressable
-            key={cat}
-            onPress={() => setActiveCategory(cat)}
-            style={[s.catChip, activeCategory === cat && s.catChipActive]}
-          >
-            <Text style={[s.catText, activeCategory === cat && s.catTextActive]}>{cat}</Text>
-          </Pressable>
-        ))}
-      </ScrollView>
+        <View style={s.dividerV} />
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={s.catScroll}
+          contentContainerStyle={{ alignItems: 'center', gap: 6, paddingRight: 12 }}
+        >
+          {allCategories.map(cat => (
+            <Pressable
+              key={cat}
+              onPress={() => setActiveCategory(cat)}
+              style={[s.catChip, activeCategory === cat && s.catChipActive]}
+            >
+              <Text style={[s.catText, activeCategory === cat && s.catTextActive]}>{cat}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+      </View>
 
       <View style={s.countRow}>
         <Text style={s.countText}>{results.length} result{results.length !== 1 ? 's' : ''}</Text>
@@ -143,15 +144,28 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
 
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.bg },
-  header: { backgroundColor: COLORS.bgCard, padding: 20, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  title: { fontSize: 24, fontWeight: '800', color: COLORS.text, marginBottom: 14 },
-  searchBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.bgElevated, borderRadius: RADIUS.lg, paddingHorizontal: 14, paddingVertical: 11, borderWidth: 1, borderColor: COLORS.border },
-  searchIcon: { fontSize: 16, marginRight: 8 },
-  input: { flex: 1, fontSize: 15, color: COLORS.text },
-  catScroll: { backgroundColor: COLORS.bgCard, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  catChip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: RADIUS.md, borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.bgElevated },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.bgCard,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+    paddingLeft: 12,
+    height: 46,
+  },
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: 110,
+    paddingRight: 6,
+  },
+  searchIcon: { fontSize: 13, marginRight: 5 },
+  input: { flex: 1, fontSize: 13, color: COLORS.text, paddingVertical: 0 },
+  dividerV: { width: 1, height: 24, backgroundColor: COLORS.border, marginRight: 8 },
+  catScroll: { flex: 1 },
+  catChip: { paddingHorizontal: 11, paddingVertical: 5, borderRadius: RADIUS.md, borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.bgElevated },
   catChipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
-  catText: { fontSize: 12, color: COLORS.textSecondary, fontWeight: '600' },
+  catText: { fontSize: 11, color: COLORS.textSecondary, fontWeight: '600' },
   catTextActive: { color: COLORS.bg },
   countRow: { paddingHorizontal: 16, paddingVertical: 8 },
   countText: { fontSize: 12, color: COLORS.textMuted },
