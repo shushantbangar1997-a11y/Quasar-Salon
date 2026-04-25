@@ -34,7 +34,7 @@ export const QUASAR_CATEGORIES: QuasarCategory[] = [
     id: 'hair-care',
     name: 'Hair Care',
     icon: '💇‍♀️',
-    imageUrl: 'https://images.unsplash.com/photo-1560869713-7d0a29430803?w=400&q=80',
+    imageUrl: 'https://images.unsplash.com/photo-1647462741268-e5724e5886c0?w=400&q=80',
     services: [
       { id: 'hc-1', name: 'Wash & Natural Dry', price: 499, durationMins: 30, gender: 'Women' },
       { id: 'hc-2', name: 'Wash & Blow Dry', price: 649, durationMins: 45, gender: 'Women' },
@@ -66,7 +66,7 @@ export const QUASAR_CATEGORIES: QuasarCategory[] = [
     id: 'transformation',
     name: 'Transformation',
     icon: '🎨',
-    imageUrl: 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=400&q=80',
+    imageUrl: 'https://plus.unsplash.com/premium_photo-1661587329310-dff2888a7e6d?w=400&q=80',
     services: [
       { id: 'tr-1', name: 'Base Shade Global Color', price: 4499, durationMins: 120, gender: 'Women' },
       { id: 'tr-2', name: 'Fashion Global Color', price: 5999, durationMins: 120, gender: 'Women', note: 'Onwards' },
@@ -82,7 +82,7 @@ export const QUASAR_CATEGORIES: QuasarCategory[] = [
     id: 'eyebrows',
     name: 'Eyebrow Studio',
     icon: '✨',
-    imageUrl: 'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=400&q=80',
+    imageUrl: 'https://plus.unsplash.com/premium_photo-1683147853735-7701df0f34a6?w=400&q=80',
     services: [
       { id: 'eb-1', name: 'First Correction', price: 1200, durationMins: 60, gender: 'Both', note: 'By Sahil Khan' },
       { id: 'eb-2', name: 'Regular Eyebrows', price: 600, durationMins: 30, gender: 'Both', note: 'By Sahil Khan' },
@@ -94,7 +94,7 @@ export const QUASAR_CATEGORIES: QuasarCategory[] = [
     id: 'threading',
     name: 'Threading',
     icon: '🧵',
-    imageUrl: 'https://images.unsplash.com/photo-1616394584738-fc6e612e71b9?w=400&q=80',
+    imageUrl: 'https://plus.unsplash.com/premium_photo-1661404164814-9d3c137097aa?w=400&q=80',
     services: [
       { id: 'th-1', name: 'Eyebrows', price: 100, durationMins: 10, gender: 'Women' },
       { id: 'th-2', name: 'Upper Lips', price: 100, durationMins: 10, gender: 'Women' },
@@ -109,7 +109,7 @@ export const QUASAR_CATEGORIES: QuasarCategory[] = [
     id: 'bleach',
     name: 'Bleach / D-Tan',
     icon: '🌟',
-    imageUrl: 'https://images.unsplash.com/photo-1556228578-8c89e6adf883?w=400&q=80',
+    imageUrl: 'https://plus.unsplash.com/premium_photo-1663040098711-ab1706dee999?w=400&q=80',
     services: [
       { id: 'bl-1', name: 'Face Bleach / D-Tan', price: 849, durationMins: 30, gender: 'Both' },
       { id: 'bl-2', name: 'Face & Neck Bleach / D-Tan', price: 1199, durationMins: 40, gender: 'Both' },
@@ -124,7 +124,7 @@ export const QUASAR_CATEGORIES: QuasarCategory[] = [
     id: 'cleanups',
     name: 'Cleanups',
     icon: '🧖',
-    imageUrl: 'https://images.unsplash.com/photo-1596755389378-c31d21fd1273?w=400&q=80',
+    imageUrl: 'https://plus.unsplash.com/premium_photo-1661628765607-39285b1434d7?w=400&q=80',
     services: [
       { id: 'cl-1', name: 'Kanpeki Clean Up', price: 2499, durationMins: 45, gender: 'Both' },
       { id: 'cl-2', name: 'Derma Clean Up', price: 3499, durationMins: 60, gender: 'Both' },
@@ -136,7 +136,7 @@ export const QUASAR_CATEGORIES: QuasarCategory[] = [
     id: 'facials',
     name: 'Facials',
     icon: '💆‍♀️',
-    imageUrl: 'https://images.unsplash.com/photo-1552693673-1bf958298935?w=400&q=80',
+    imageUrl: 'https://plus.unsplash.com/premium_photo-1661657626503-fe2a5d70a5eb?w=400&q=80',
     services: [
       { id: 'fa-1', name: 'Kanpeki Hydra Pro', price: 3499, durationMins: 60, gender: 'Both' },
       { id: 'fa-2', name: 'Red Wine Facial', price: 3999, durationMins: 60, gender: 'Both' },
@@ -155,7 +155,7 @@ export const QUASAR_CATEGORIES: QuasarCategory[] = [
     id: 'nails',
     name: 'Nail Studio',
     icon: '💅',
-    imageUrl: 'https://images.unsplash.com/photo-1604654894610-df63bc536371?w=400&q=80',
+    imageUrl: 'https://images.unsplash.com/photo-1632345031435-8727f6897d53?w=400&q=80',
     services: [
       { id: 'na-1', name: 'Nail Cut / Filing', price: 189, durationMins: 15, gender: 'Women' },
       { id: 'na-2', name: 'Regular Nail Paint', price: 199, durationMins: 20, gender: 'Women' },
@@ -181,7 +181,7 @@ export const QUASAR_CATEGORIES: QuasarCategory[] = [
     id: 'waxing',
     name: 'Waxing',
     icon: '🌸',
-    imageUrl: 'https://images.unsplash.com/photo-1516975080664-ed2fc6a32937?w=400&q=80',
+    imageUrl: 'https://plus.unsplash.com/premium_photo-1661541074899-cfe90d24c481?w=400&q=80',
     services: [
       { id: 'wx-1', name: 'Eyebrows — Rica', price: 149, durationMins: 10, gender: 'Women' },
       { id: 'wx-2', name: 'Eyebrows — Peel Off', price: 299, durationMins: 10, gender: 'Women' },
@@ -207,7 +207,7 @@ export const QUASAR_CATEGORIES: QuasarCategory[] = [
     id: 'mani-pedi',
     name: 'Manicure & Pedicure',
     icon: '🤲',
-    imageUrl: 'https://images.unsplash.com/photo-1519014816548-bf5fe059798b?w=400&q=80',
+    imageUrl: 'https://images.unsplash.com/photo-1522337660859-02fbefca4702?w=400&q=80',
     services: [
       { id: 'mp-1', name: 'Manicure — Lemon / Blueberry', price: 1000, durationMins: 40, gender: 'Women' },
       { id: 'mp-2', name: 'Pedicure — Lemon / Blueberry', price: 1000, durationMins: 40, gender: 'Women' },
@@ -229,7 +229,7 @@ export const QUASAR_CATEGORIES: QuasarCategory[] = [
     id: 'massages',
     name: 'Massages',
     icon: '💆',
-    imageUrl: 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=400&q=80',
+    imageUrl: 'https://plus.unsplash.com/premium_photo-1661407350987-9e9319ac11e6?w=400&q=80',
     services: [
       { id: 'ms-1', name: 'Head Massage With Natural Dry (30 Min)', price: 1000, durationMins: 30, gender: 'Both' },
       { id: 'ms-2', name: 'Head Massage With Natural Dry (45 Min)', price: 1200, durationMins: 45, gender: 'Both' },
@@ -247,7 +247,7 @@ export const QUASAR_CATEGORIES: QuasarCategory[] = [
     id: 'body',
     name: 'Body Treatments',
     icon: '🛁',
-    imageUrl: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=400&q=80',
+    imageUrl: 'https://plus.unsplash.com/premium_photo-1661407664011-fc03539b580a?w=400&q=80',
     services: [
       { id: 'bd-1', name: 'Swedish Therapy (60 Min)', price: 2500, durationMins: 60, gender: 'Both' },
       { id: 'bd-2', name: 'Swedish Therapy (90 Min)', price: 3500, durationMins: 90, gender: 'Both' },
@@ -271,7 +271,7 @@ export const QUASAR_CATEGORIES: QuasarCategory[] = [
     id: 'makeup',
     name: 'Make-Up',
     icon: '💄',
-    imageUrl: 'https://images.unsplash.com/photo-1487412947147-5cebf100ffc2?w=400&q=80',
+    imageUrl: 'https://images.unsplash.com/photo-1758739010986-cbcd556b34ec?w=400&q=80',
     services: [
       { id: 'mu-1', name: 'Eye Make-Up (Party)', price: 1999, durationMins: 45, gender: 'Women' },
       { id: 'mu-2', name: 'Basic Make-Up (Party)', price: 3499, durationMins: 60, gender: 'Women' },
@@ -290,7 +290,7 @@ export const QUASAR_CATEGORIES: QuasarCategory[] = [
     id: 'jacuzzi',
     name: 'Jacuzzi & Spa',
     icon: '🛁',
-    imageUrl: 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=400&q=80',
+    imageUrl: 'https://plus.unsplash.com/premium_photo-1681721186120-bdd84631c674?w=400&q=80',
     services: [
       { id: 'jz-1', name: 'Jacuzzi Bubble Bath (30 Min)', price: 2000, durationMins: 30, gender: 'Both' },
       { id: 'jz-2', name: 'Bomb Therapy With Bath Fizzer (30 Min)', price: 2500, durationMins: 30, gender: 'Both' },
@@ -305,7 +305,7 @@ export const QUASAR_CATEGORIES: QuasarCategory[] = [
     id: 'bridal',
     name: 'Bridal',
     icon: '👰',
-    imageUrl: 'https://images.unsplash.com/photo-1519741497674-611481863552?w=400&q=80',
+    imageUrl: 'https://plus.unsplash.com/premium_photo-1661380533461-8d29e654aea6?w=400&q=80',
     services: [
       { id: 'br-1', name: 'Engagement Make-Up', price: 9999, durationMins: 120, gender: 'Women' },
       { id: 'br-2', name: 'Engagement HD Make-Up', price: 12999, durationMins: 150, gender: 'Women' },
