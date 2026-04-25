@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, ScrollView, Pressable, StyleSheet, SafeAreaView, StatusBar } from 'react-native';
+import {
+  View, Text, TextInput, ScrollView, Pressable,
+  StyleSheet, SafeAreaView, StatusBar, Image,
+} from 'react-native';
 import { QUASAR_CATEGORIES, QuasarService } from '../quasarData';
 import { useCart } from '../CartContext';
 import { COLORS, RADIUS } from '../theme';
@@ -39,48 +42,67 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
     <SafeAreaView style={s.safe}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.bg} />
 
-      {/* Compact inline bar: search + category chips on one row */}
-      <View style={s.topBar}>
+      {/* Brand header — mirrors HomeScreen header */}
+      <View style={s.header}>
+        <View style={s.logoRow}>
+          <Image
+            source={require('../../assets/quasar-logo-new.png')}
+            style={s.topLogo}
+            resizeMode="contain"
+          />
+          <View>
+            <Text style={s.logoTagline}>Luxury Salon</Text>
+            <Text style={s.logoSub}>Explore services</Text>
+          </View>
+        </View>
+
+        {/* Search input — right side of header */}
         <View style={s.searchBox}>
           <Text style={s.searchIcon}>🔍</Text>
           <TextInput
             style={s.input}
-            placeholder="Search..."
+            placeholder="Hair, nails, massage…"
             placeholderTextColor={COLORS.textMuted}
             value={query}
             onChangeText={setQuery}
           />
           {query.length > 0 && (
-            <Pressable onPress={() => setQuery('')}>
-              <Text style={{ color: COLORS.textMuted, fontSize: 14 }}>✕</Text>
+            <Pressable onPress={() => setQuery('')} hitSlop={8}>
+              <Text style={s.clearBtn}>✕</Text>
             </Pressable>
           )}
         </View>
-
-        <View style={s.dividerV} />
-
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={s.catScroll}
-          contentContainerStyle={{ alignItems: 'center', gap: 6, paddingRight: 12 }}
-        >
-          {allCategories.map(cat => (
-            <Pressable
-              key={cat}
-              onPress={() => setActiveCategory(cat)}
-              style={[s.catChip, activeCategory === cat && s.catChipActive]}
-            >
-              <Text style={[s.catText, activeCategory === cat && s.catTextActive]}>{cat}</Text>
-            </Pressable>
-          ))}
-        </ScrollView>
       </View>
 
+      {/* Category filter strip */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={s.catScroll}
+        contentContainerStyle={s.catContent}
+      >
+        {allCategories.map(cat => (
+          <Pressable
+            key={cat}
+            onPress={() => setActiveCategory(cat)}
+            style={[s.catChip, activeCategory === cat && s.catChipActive]}
+          >
+            <Text style={[s.catText, activeCategory === cat && s.catTextActive]}>{cat}</Text>
+          </Pressable>
+        ))}
+      </ScrollView>
+
+      {/* Result count */}
       <View style={s.countRow}>
         <Text style={s.countText}>{results.length} result{results.length !== 1 ? 's' : ''}</Text>
+        {activeCategory !== 'All' && (
+          <Pressable onPress={() => setActiveCategory('All')}>
+            <Text style={s.clearFilter}>Clear ✕</Text>
+          </Pressable>
+        )}
       </View>
 
+      {/* Service list */}
       <ScrollView
         style={{ flex: 1 }}
         showsVerticalScrollIndicator={false}
@@ -104,7 +126,7 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
                 <View style={s.cardMid}>
                   <Text style={s.svcName} numberOfLines={2}>{r.service.name}</Text>
                   <Pressable onPress={() => navigation.navigate('Category', { category: cat })}>
-                    <Text style={s.catName}>{r.catName} →</Text>
+                    <Text style={s.catLabel}>{r.catName} →</Text>
                   </Pressable>
                   <Text style={s.price}>₹{r.service.price.toLocaleString('en-IN')}</Text>
                 </View>
@@ -144,49 +166,158 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
 
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.bg },
-  topBar: {
+
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 12,
+    backgroundColor: COLORS.bg,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  topLogo: { width: 42, height: 42 },
+  logoTagline: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.text,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  logoSub: {
+    fontSize: 10,
+    color: COLORS.textMuted,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginTop: 1,
+  },
+
+  searchBox: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.bgCard,
+    borderRadius: RADIUS.lg,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginLeft: 14,
+    maxWidth: 200,
+  },
+  searchIcon: { fontSize: 13, marginRight: 6 },
+  input: { flex: 1, fontSize: 13, color: COLORS.text, paddingVertical: 0 },
+  clearBtn: { color: COLORS.textMuted, fontSize: 13 },
+
+  catScroll: {
+    backgroundColor: COLORS.bgCard,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
-    paddingLeft: 12,
-    height: 46,
   },
-  searchBox: {
+  catContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 8,
+    alignItems: 'center',
+  },
+  catChip: {
+    paddingHorizontal: 13,
+    paddingVertical: 6,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.bgElevated,
+  },
+  catChipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  catText: { fontSize: 12, color: COLORS.textSecondary, fontWeight: '600' },
+  catTextActive: { color: COLORS.bg },
+
+  countRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    width: 110,
-    paddingRight: 6,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
-  searchIcon: { fontSize: 13, marginRight: 5 },
-  input: { flex: 1, fontSize: 13, color: COLORS.text, paddingVertical: 0 },
-  dividerV: { width: 1, height: 24, backgroundColor: COLORS.border, marginRight: 8 },
-  catScroll: { flex: 1 },
-  catChip: { paddingHorizontal: 11, paddingVertical: 5, borderRadius: RADIUS.md, borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.bgElevated },
-  catChipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
-  catText: { fontSize: 11, color: COLORS.textSecondary, fontWeight: '600' },
-  catTextActive: { color: COLORS.bg },
-  countRow: { paddingHorizontal: 16, paddingVertical: 8 },
   countText: { fontSize: 12, color: COLORS.textMuted },
+  clearFilter: { fontSize: 12, color: COLORS.primary, fontWeight: '600' },
+
   empty: { alignItems: 'center', paddingTop: 60 },
   emptyTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text, marginTop: 12 },
   emptyText: { color: COLORS.textSecondary, marginTop: 6 },
-  card: { backgroundColor: COLORS.bgCard, borderRadius: RADIUS.lg, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: COLORS.border, flexDirection: 'row', alignItems: 'center' },
-  catIconWrap: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.primaryDim, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+
+  card: {
+    backgroundColor: COLORS.bgCard,
+    borderRadius: RADIUS.lg,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  catIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: COLORS.primaryDim,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
   cardMid: { flex: 1, marginRight: 8 },
   svcName: { fontSize: 14, fontWeight: '700', color: COLORS.text },
-  catName: { fontSize: 12, color: COLORS.primary, marginTop: 3 },
+  catLabel: { fontSize: 12, color: COLORS.primary, marginTop: 3 },
   price: { fontSize: 15, fontWeight: '800', color: COLORS.primary, marginTop: 6 },
   addWrap: {},
-  addBtn: { borderWidth: 1.5, borderColor: COLORS.primary, paddingHorizontal: 14, paddingVertical: 7, borderRadius: RADIUS.sm },
+  addBtn: {
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: RADIUS.sm,
+  },
   addBtnText: { color: COLORS.primary, fontWeight: '800', fontSize: 12 },
   qtyRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  qtyBtn: { backgroundColor: COLORS.primary, width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  qtyBtn: {
+    backgroundColor: COLORS.primary,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   qtyBtnText: { color: COLORS.bg, fontSize: 16, fontWeight: '800', lineHeight: 20 },
   qtyNum: { fontSize: 14, fontWeight: '800', color: COLORS.text, minWidth: 20, textAlign: 'center' },
-  cartBar: { position: 'absolute', bottom: 12, left: 16, right: 16, backgroundColor: COLORS.primary, borderRadius: RADIUS.lg, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, shadowColor: COLORS.primary, shadowOpacity: 0.5, shadowRadius: 16, elevation: 8 },
-  cartBadge: { backgroundColor: COLORS.bg, width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+
+  cartBar: {
+    position: 'absolute',
+    bottom: 12,
+    left: 16,
+    right: 16,
+    backgroundColor: COLORS.primary,
+    borderRadius: RADIUS.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    shadowColor: COLORS.primary,
+    shadowOpacity: 0.5,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  cartBadge: {
+    backgroundColor: COLORS.bg,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
   cartBadgeText: { fontSize: 12, fontWeight: '800', color: COLORS.primary },
   cartBarLabel: { flex: 1, fontSize: 14, fontWeight: '700', color: COLORS.bg },
   cartBarPrice: { fontSize: 14, fontWeight: '800', color: COLORS.bg },
