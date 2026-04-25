@@ -1,0 +1,92 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "AC7YShRUMAPPbx5LQNCOv"
+uri = "file://mobile/assets/services/hair-care.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "Ec0JZ_7QQkqJT0l4GOqFZ"
+uri = "file://mobile/assets/services/transformation.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "BTrqXxoWUsH0V_LJ7juqM"
+uri = "file://mobile/assets/services/eyebrow-studio.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "ItTNDyy0TxCM2KIZVb0dd"
+uri = "file://mobile/assets/services/threading.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "4jBZUuSv9kH0U2mOo1ex7"
+uri = "file://mobile/assets/services/bleach-dtan.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "AwE6OkzXOfZQpOeCR-bQR"
+uri = "file://mobile/assets/services/cleanups.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "fQL_NhQRQyLRu8SAtQhbD"
+uri = "file://mobile/assets/services/facials.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "xhqhO8yC1zaQ0ma0mzHRj"
+uri = "file://mobile/assets/services/nail-studio.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "mIbV6CFvs-yG1BCO2FKwU"
+uri = "file://mobile/assets/services/waxing.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "cN1KwmQPd8OYKX2t-Cg43"
+uri = "file://mobile/assets/services/manicure-pedicure.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "txETSwUGumL3cWSgkNUJJ"
+uri = "file://mobile/assets/services/massages.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "9cCxRiOkrbg2Ckd2Uq8DX"
+uri = "file://mobile/assets/services/body-treatments.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "v2j445NcX7ZY9e3JiDg7B"
+uri = "file://mobile/assets/services/makeup.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "7QbuuiOMgUrgN4_8OPo5_"
+uri = "file://mobile/assets/services/jacuzzi-spa.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "onxAl3w__jgVF4dSqeCe6"
+uri = "file://mobile/assets/services/bridal.png"
+type = "image"
+title = "generated_image"

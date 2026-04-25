@@ -60,7 +60,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
               onPress={() => navigation.navigate('Category', { category: cat })}
             >
               <Image
-                source={{ uri: cat.imageUrl }}
+                source={typeof cat.imageUrl === 'string' ? { uri: cat.imageUrl } : cat.imageUrl}
                 style={s.catImage}
                 resizeMode="cover"
               />
@@ -82,7 +82,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
                 onPress={() => navigation.navigate('Category', { category: cat })}
               >
                 <Image
-                  source={{ uri: cat.imageUrl }}
+                  source={typeof cat.imageUrl === 'string' ? { uri: cat.imageUrl } : cat.imageUrl}
                   style={s.popularImage}
                   resizeMode="cover"
                 />

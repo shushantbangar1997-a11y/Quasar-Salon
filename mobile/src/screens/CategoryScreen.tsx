@@ -43,7 +43,7 @@ export default function CategoryScreen({ route, navigation }: CategoryScreenProp
           <Text style={s.subtitle}>{category.services.length} services available</Text>
         </View>
         {category.imageUrl ? (
-          <Image source={{ uri: category.imageUrl }} style={s.headerImage} resizeMode="cover" />
+          <Image source={typeof category.imageUrl === 'string' ? { uri: category.imageUrl } : category.imageUrl} style={s.headerImage} resizeMode="cover" />
         ) : null}
       </View>
 
