@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import {
   View, Text, ScrollView, Pressable, StyleSheet,
-  SafeAreaView, StatusBar, TextInput, ActivityIndicator,
+  SafeAreaView, StatusBar, TextInput, ActivityIndicator, Switch,
 } from 'react-native';
 import { useAdmin } from '../AdminContext';
 import { useBookings, ConfirmedBooking } from '../BookingsContext';
-import { QUASAR_STAFF } from '../quasarData';
+import { QUASAR_STAFF, StaffMember } from '../quasarData';
 import { COLORS, RADIUS, SHADOW } from '../theme';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation';
@@ -18,6 +18,13 @@ const STATUS_CONFIG: Record<string, { bg: string; color: string; label: string }
   completed: { bg: COLORS.bgElevated, color: COLORS.textSecondary, label: '✅ Done' },
   cancelled: { bg: COLORS.errorBg,   color: COLORS.error,    label: '✗ Cancelled' },
 };
+
+const EMOJI_OPTIONS = ['💇', '💆', '✂️', '💄', '💅', '🧖', '🧴', '👨‍🎨', '👩‍🎨', '🌟', '💎', '🪄'];
+
+const SPECIALTY_OPTIONS = [
+  'Hair Care', 'Transformation', 'Make-Up', 'Skin Care',
+  'Nail Art', 'Threading', 'Waxing', 'Bridal', 'Spa & Massage',
+];
 
 function StatCard({ value, label, color }: { value: string | number; label: string; color?: string }) {
   return (
@@ -81,12 +88,27 @@ function LoginPanel({ onLogin }: { onLogin: (pw: string) => boolean }) {
   );
 }
 
+const BLANK_FORM = {
+  name: '',
+  role: '',
+  experience: '',
+  specialties: [] as string[],
+  emoji: '✂️',
+  available: true,
+};
+
 export default function AdminScreen({ navigation }: Props) {
   const { isAdmin, loginAsAdmin, logoutAdmin } = useAdmin();
   const { bookings, cancelBooking } = useBookings();
+
   const [tab, setTab] = useState<'bookings' | 'staff'>('bookings');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+  const [staffList, setStaffList] = useState<StaffMember[]>([...QUASAR_STAFF]);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [form, setForm] = useState({ ...BLANK_FORM });
+  const [formError, setFormError] = useState('');
 
   if (!isAdmin) {
     return (
@@ -104,21 +126,56 @@ export default function AdminScreen({ navigation }: Props) {
 
   const allBookings = [...bookings].sort((a, b) => b.createdAt - a.createdAt);
   const filtered = statusFilter === 'all' ? allBookings : allBookings.filter(b => b.status === statusFilter);
-
-  const totalRevenue = allBookings.reduce((s, b) => s + (b.status !== 'cancelled' ? b.total : 0), 0);
-  const pending = allBookings.filter(b => b.status === 'pending').length;
+  const totalRevenue = allBookings.reduce((sum, b) => sum + (b.status !== 'cancelled' ? b.total : 0), 0);
+  const pending   = allBookings.filter(b => b.status === 'pending').length;
   const confirmed = allBookings.filter(b => b.status === 'confirmed').length;
-  const completed = allBookings.filter(b => b.status === 'completed').length;
 
   const handleStatusChange = async (booking: ConfirmedBooking, newStatus: ConfirmedBooking['status']) => {
     setUpdatingId(booking.id);
     try {
-      if (newStatus === 'cancelled') {
-        await cancelBooking(booking.id);
-      }
+      if (newStatus === 'cancelled') await cancelBooking(booking.id);
     } finally {
       setUpdatingId(null);
     }
+  };
+
+  const toggleAvailability = (id: string) => {
+    setStaffList(prev => prev.map(st => st.id === id ? { ...st, available: !st.available } : st));
+  };
+
+  const removeStaff = (id: string) => {
+    setStaffList(prev => prev.filter(st => st.id !== id));
+  };
+
+  const toggleSpecialty = (sp: string) => {
+    setForm(f => ({
+      ...f,
+      specialties: f.specialties.includes(sp)
+        ? f.specialties.filter(s => s !== sp)
+        : [...f.specialties, sp],
+    }));
+  };
+
+  const handleAddEmployee = () => {
+    if (!form.name.trim()) { setFormError('Name is required.'); return; }
+    if (!form.role.trim()) { setFormError('Role is required.'); return; }
+    if (form.specialties.length === 0) { setFormError('Select at least one specialty.'); return; }
+
+    const newMember: StaffMember = {
+      id: `staff-custom-${Date.now()}`,
+      name: form.name.trim(),
+      role: form.role.trim(),
+      experience: form.experience.trim() || 'New hire',
+      specialties: form.specialties,
+      emoji: form.emoji,
+      available: form.available,
+      schedule: {},
+    };
+
+    setStaffList(prev => [...prev, newMember]);
+    setForm({ ...BLANK_FORM });
+    setFormError('');
+    setShowAddForm(false);
   };
 
   const FILTERS = ['all', 'pending', 'confirmed', 'completed', 'cancelled'];
@@ -162,7 +219,7 @@ export default function AdminScreen({ navigation }: Props) {
               onPress={() => setTab(t)}
             >
               <Text style={[s.tabText, tab === t && s.tabTextActive]}>
-                {t === 'bookings' ? `📅 Bookings (${allBookings.length})` : `👤 Staff (${QUASAR_STAFF.length})`}
+                {t === 'bookings' ? `📅 Bookings (${allBookings.length})` : `👤 Staff (${staffList.length})`}
               </Text>
             </Pressable>
           ))}
@@ -171,7 +228,6 @@ export default function AdminScreen({ navigation }: Props) {
         {/* ── BOOKINGS TAB ── */}
         {tab === 'bookings' && (
           <View style={s.section}>
-            {/* Status filter pills */}
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.filterScroll}>
               <View style={s.filterRow}>
                 {FILTERS.map(f => (
@@ -201,7 +257,6 @@ export default function AdminScreen({ navigation }: Props) {
 
                 return (
                   <View key={booking.id} style={s.bookingCard}>
-                    {/* Top row */}
                     <View style={s.bookingTop}>
                       <View style={s.bookingInfo}>
                         <Text style={s.bookingId} numberOfLines={1}>#{booking.id.slice(-8)}</Text>
@@ -211,41 +266,28 @@ export default function AdminScreen({ navigation }: Props) {
                       </View>
                       <Text style={s.bookingTotal}>₹{booking.total.toLocaleString('en-IN')}</Text>
                     </View>
-
-                    {/* Details */}
                     <Text style={s.bookingServices} numberOfLines={2}>{services}</Text>
                     <View style={s.bookingMeta}>
                       <Text style={s.metaItem}>📅 {booking.date}</Text>
                       <Text style={s.metaItem}>🕐 {booking.time}</Text>
                       {booking.stylist && <Text style={s.metaItem}>✂️ {booking.stylist.name}</Text>}
                     </View>
-
-                    {/* Actions */}
                     {isUpdating ? (
                       <ActivityIndicator size="small" color={COLORS.primary} style={{ marginTop: 10 }} />
                     ) : (
                       <View style={s.actions}>
                         {booking.status === 'pending' && (
                           <>
-                            <Pressable
-                              style={[s.actionBtn, { backgroundColor: COLORS.successBg, borderColor: COLORS.success }]}
-                              onPress={() => handleStatusChange(booking, 'confirmed')}
-                            >
+                            <Pressable style={[s.actionBtn, { backgroundColor: COLORS.successBg, borderColor: COLORS.success }]} onPress={() => handleStatusChange(booking, 'confirmed')}>
                               <Text style={[s.actionText, { color: COLORS.success }]}>Approve</Text>
                             </Pressable>
-                            <Pressable
-                              style={[s.actionBtn, { backgroundColor: COLORS.errorBg, borderColor: COLORS.error }]}
-                              onPress={() => handleStatusChange(booking, 'cancelled')}
-                            >
+                            <Pressable style={[s.actionBtn, { backgroundColor: COLORS.errorBg, borderColor: COLORS.error }]} onPress={() => handleStatusChange(booking, 'cancelled')}>
                               <Text style={[s.actionText, { color: COLORS.error }]}>Cancel</Text>
                             </Pressable>
                           </>
                         )}
                         {booking.status === 'confirmed' && (
-                          <Pressable
-                            style={[s.actionBtn, { backgroundColor: COLORS.errorBg, borderColor: COLORS.error }]}
-                            onPress={() => handleStatusChange(booking, 'cancelled')}
-                          >
+                          <Pressable style={[s.actionBtn, { backgroundColor: COLORS.errorBg, borderColor: COLORS.error }]} onPress={() => handleStatusChange(booking, 'cancelled')}>
                             <Text style={[s.actionText, { color: COLORS.error }]}>Cancel Booking</Text>
                           </Pressable>
                         )}
@@ -266,50 +308,158 @@ export default function AdminScreen({ navigation }: Props) {
         {/* ── STAFF TAB ── */}
         {tab === 'staff' && (
           <View style={s.section}>
-            <View style={s.staffSummary}>
+
+            {/* Summary + Add button */}
+            <View style={s.staffHeader}>
               <Text style={s.staffSummaryText}>
-                {QUASAR_STAFF.filter(st => st.available).length} of {QUASAR_STAFF.length} stylists available today
+                {staffList.filter(st => st.available).length} of {staffList.length} available today
               </Text>
+              <Pressable
+                style={[s.addBtn, showAddForm && s.addBtnCancel]}
+                onPress={() => { setShowAddForm(v => !v); setFormError(''); setForm({ ...BLANK_FORM }); }}
+              >
+                <Text style={s.addBtnText}>{showAddForm ? '✕ Cancel' : '+ Add Employee'}</Text>
+              </Pressable>
             </View>
-            {QUASAR_STAFF.map(staff => (
-              <View key={staff.id} style={s.staffCard}>
-                <View style={s.staffTop}>
-                  <View style={s.staffAvatar}>
-                    <Text style={{ fontSize: 26 }}>{staff.emoji}</Text>
+
+            {/* ── Add Employee Form ── */}
+            {showAddForm && (
+              <View style={s.formCard}>
+                <Text style={s.formTitle}>New Employee</Text>
+
+                {formError ? <Text style={s.formError}>{formError}</Text> : null}
+
+                {/* Name */}
+                <Text style={s.fieldLabel}>Full Name *</Text>
+                <TextInput
+                  style={s.fieldInput}
+                  placeholder="e.g. Priya Sharma"
+                  placeholderTextColor={COLORS.textMuted}
+                  value={form.name}
+                  onChangeText={v => { setForm(f => ({ ...f, name: v })); setFormError(''); }}
+                />
+
+                {/* Role */}
+                <Text style={s.fieldLabel}>Role / Title *</Text>
+                <TextInput
+                  style={s.fieldInput}
+                  placeholder="e.g. Senior Stylist"
+                  placeholderTextColor={COLORS.textMuted}
+                  value={form.role}
+                  onChangeText={v => setForm(f => ({ ...f, role: v }))}
+                />
+
+                {/* Experience */}
+                <Text style={s.fieldLabel}>Experience</Text>
+                <TextInput
+                  style={s.fieldInput}
+                  placeholder="e.g. 4 years"
+                  placeholderTextColor={COLORS.textMuted}
+                  value={form.experience}
+                  onChangeText={v => setForm(f => ({ ...f, experience: v }))}
+                />
+
+                {/* Emoji */}
+                <Text style={s.fieldLabel}>Pick an Emoji</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
+                  <View style={s.emojiRow}>
+                    {EMOJI_OPTIONS.map(em => (
+                      <Pressable
+                        key={em}
+                        style={[s.emojiPill, form.emoji === em && s.emojiPillActive]}
+                        onPress={() => setForm(f => ({ ...f, emoji: em }))}
+                      >
+                        <Text style={s.emojiText}>{em}</Text>
+                      </Pressable>
+                    ))}
                   </View>
-                  <View style={s.staffInfo}>
-                    <Text style={s.staffName}>{staff.name}</Text>
-                    <Text style={s.staffRole}>{staff.role} · {staff.experience}</Text>
-                    <View style={s.specialtyRow}>
-                      {staff.specialties.map(sp => (
-                        <View key={sp} style={s.specialtyTag}>
-                          <Text style={s.specialtyText}>{sp}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  </View>
-                  <View style={[s.availBadge, { backgroundColor: staff.available ? COLORS.successBg : COLORS.errorBg }]}>
-                    <Text style={[s.availText, { color: staff.available ? COLORS.success : COLORS.error }]}>
-                      {staff.available ? 'Active' : 'Off'}
-                    </Text>
-                  </View>
+                </ScrollView>
+
+                {/* Specialties */}
+                <Text style={s.fieldLabel}>Specialties * (pick one or more)</Text>
+                <View style={s.specialtyPicker}>
+                  {SPECIALTY_OPTIONS.map(sp => (
+                    <Pressable
+                      key={sp}
+                      style={[s.spTag, form.specialties.includes(sp) && s.spTagActive]}
+                      onPress={() => toggleSpecialty(sp)}
+                    >
+                      <Text style={[s.spTagText, form.specialties.includes(sp) && s.spTagTextActive]}>{sp}</Text>
+                    </Pressable>
+                  ))}
                 </View>
 
-                {/* Schedule */}
-                {Object.keys(staff.schedule).length > 0 && (
-                  <View style={s.schedule}>
-                    {Object.entries(staff.schedule).map(([day, hours]) =>
-                      hours ? (
-                        <View key={day} style={s.scheduleRow}>
-                          <Text style={s.scheduleDay}>{day.charAt(0).toUpperCase() + day.slice(1, 3)}</Text>
-                          <Text style={s.scheduleHours}>{hours.start} – {hours.end}</Text>
-                        </View>
-                      ) : null
-                    )}
-                  </View>
-                )}
+                {/* Availability */}
+                <View style={s.availRow}>
+                  <Text style={s.fieldLabel}>Available today</Text>
+                  <Switch
+                    value={form.available}
+                    onValueChange={v => setForm(f => ({ ...f, available: v }))}
+                    trackColor={{ false: COLORS.bgElevated, true: COLORS.primary }}
+                    thumbColor={COLORS.bg}
+                  />
+                </View>
+
+                <Pressable style={s.submitBtn} onPress={handleAddEmployee}>
+                  <Text style={s.submitBtnText}>Add to Team</Text>
+                </Pressable>
               </View>
-            ))}
+            )}
+
+            {/* Staff cards */}
+            {staffList.length === 0 ? (
+              <View style={s.empty}>
+                <Text style={s.emptyIcon}>👤</Text>
+                <Text style={s.emptyText}>No staff members yet</Text>
+              </View>
+            ) : (
+              staffList.map(staff => (
+                <View key={staff.id} style={s.staffCard}>
+                  <View style={s.staffTop}>
+                    <View style={s.staffAvatar}>
+                      <Text style={{ fontSize: 26 }}>{staff.emoji}</Text>
+                    </View>
+                    <View style={s.staffInfo}>
+                      <Text style={s.staffName}>{staff.name}</Text>
+                      <Text style={s.staffRole}>{staff.role} · {staff.experience}</Text>
+                      <View style={s.specialtyRow}>
+                        {staff.specialties.map(sp => (
+                          <View key={sp} style={s.specialtyTag}>
+                            <Text style={s.specialtyText}>{sp}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
+                    <View style={s.staffActions}>
+                      <Pressable
+                        style={[s.availBadge, { backgroundColor: staff.available ? COLORS.successBg : COLORS.errorBg }]}
+                        onPress={() => toggleAvailability(staff.id)}
+                      >
+                        <Text style={[s.availText, { color: staff.available ? COLORS.success : COLORS.error }]}>
+                          {staff.available ? 'Active' : 'Off'}
+                        </Text>
+                      </Pressable>
+                      <Pressable style={s.removeBtn} onPress={() => removeStaff(staff.id)}>
+                        <Text style={s.removeBtnText}>✕</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+
+                  {Object.keys(staff.schedule).length > 0 && (
+                    <View style={s.schedule}>
+                      {Object.entries(staff.schedule).map(([day, hours]) =>
+                        hours ? (
+                          <View key={day} style={s.scheduleRow}>
+                            <Text style={s.scheduleDay}>{day.charAt(0).toUpperCase() + day.slice(1, 3)}</Text>
+                            <Text style={s.scheduleHours}>{hours.start} – {hours.end}</Text>
+                          </View>
+                        ) : null
+                      )}
+                    </View>
+                  )}
+                </View>
+              ))
+            )}
           </View>
         )}
 
@@ -378,19 +528,47 @@ const s = StyleSheet.create({
   bookingServices: { fontSize: 13, color: COLORS.text, marginBottom: 8, lineHeight: 18 },
   bookingMeta: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   metaItem: { fontSize: 13, color: COLORS.textSecondary },
-
   actions: { flexDirection: 'row', gap: 10, marginTop: 12 },
   actionBtn: { flex: 1, paddingVertical: 8, borderRadius: RADIUS.md, borderWidth: 1, alignItems: 'center' },
   actionText: { fontSize: 13, fontWeight: '700' },
   finalStatus: { fontSize: 13, color: COLORS.textMuted, marginTop: 10, fontStyle: 'italic' },
 
-  staffSummary: { backgroundColor: COLORS.primaryDim, borderRadius: RADIUS.md, padding: 12, marginBottom: 12, borderWidth: 1, borderColor: COLORS.border },
-  staffSummaryText: { fontSize: 14, color: COLORS.textSecondary, textAlign: 'center', fontWeight: '600' },
+  staffHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, marginTop: 4 },
+  staffSummaryText: { fontSize: 13, color: COLORS.textSecondary, fontWeight: '600', flex: 1 },
+  addBtn: { backgroundColor: COLORS.primary, borderRadius: RADIUS.md, paddingHorizontal: 14, paddingVertical: 8 },
+  addBtnCancel: { backgroundColor: COLORS.bgElevated },
+  addBtnText: { color: COLORS.bg, fontWeight: '700', fontSize: 13 },
+
+  formCard: {
+    backgroundColor: COLORS.bgCard, borderRadius: RADIUS.lg,
+    padding: 18, marginBottom: 16, borderWidth: 1.5, borderColor: COLORS.primary, ...SHADOW.card,
+  },
+  formTitle: { fontSize: 16, fontWeight: '800', color: COLORS.text, marginBottom: 14 },
+  formError: { backgroundColor: COLORS.errorBg, color: COLORS.error, fontSize: 13, padding: 10, borderRadius: RADIUS.md, marginBottom: 12, textAlign: 'center' },
+  fieldLabel: { fontSize: 13, fontWeight: '600', color: COLORS.textSecondary, marginBottom: 6 },
+  fieldInput: {
+    borderWidth: 1.5, borderColor: COLORS.border, borderRadius: RADIUS.md,
+    padding: 12, fontSize: 14, color: COLORS.text,
+    backgroundColor: COLORS.bg, marginBottom: 14,
+  },
+  emojiRow: { flexDirection: 'row', gap: 8 },
+  emojiPill: { width: 44, height: 44, borderRadius: 22, borderWidth: 1.5, borderColor: COLORS.border, backgroundColor: COLORS.bg, alignItems: 'center', justifyContent: 'center' },
+  emojiPillActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primaryDim },
+  emojiText: { fontSize: 22 },
+  specialtyPicker: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 },
+  spTag: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: RADIUS.xxl, borderWidth: 1.5, borderColor: COLORS.border, backgroundColor: COLORS.bg },
+  spTagActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primaryDim },
+  spTagText: { fontSize: 13, color: COLORS.textMuted },
+  spTagTextActive: { color: COLORS.primary, fontWeight: '700' },
+  availRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
+  submitBtn: { backgroundColor: COLORS.primary, borderRadius: RADIUS.md, paddingVertical: 13, alignItems: 'center' },
+  submitBtnText: { color: COLORS.bg, fontWeight: '800', fontSize: 15 },
+
   staffCard: {
     backgroundColor: COLORS.bgCard, borderRadius: RADIUS.lg,
     padding: 16, marginBottom: 12, borderWidth: 1, borderColor: COLORS.border, ...SHADOW.card,
   },
-  staffTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 10 },
+  staffTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 6 },
   staffAvatar: { width: 52, height: 52, borderRadius: 26, backgroundColor: COLORS.primaryDim, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: COLORS.primary },
   staffInfo: { flex: 1 },
   staffName: { fontSize: 16, fontWeight: '700', color: COLORS.text },
@@ -398,8 +576,11 @@ const s = StyleSheet.create({
   specialtyRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 },
   specialtyTag: { backgroundColor: COLORS.bgElevated, borderRadius: RADIUS.sm, paddingHorizontal: 8, paddingVertical: 3 },
   specialtyText: { fontSize: 11, color: COLORS.textSecondary },
-  availBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: RADIUS.xxl, alignSelf: 'flex-start' },
+  staffActions: { alignItems: 'flex-end', gap: 8 },
+  availBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: RADIUS.xxl },
   availText: { fontSize: 12, fontWeight: '700' },
+  removeBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: COLORS.errorBg, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.error },
+  removeBtnText: { color: COLORS.error, fontSize: 12, fontWeight: '800' },
   schedule: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4, paddingTop: 10, borderTopWidth: 1, borderTopColor: COLORS.borderLight },
   scheduleRow: { flexDirection: 'row', gap: 6 },
   scheduleDay: { fontSize: 12, fontWeight: '700', color: COLORS.textMuted, width: 28 },
