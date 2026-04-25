@@ -57,13 +57,13 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
         </View>
       </View>
 
-      {/* Full-width search input */}
+      {/* Search + category chips on one row */}
       <View style={s.searchRow}>
         <View style={s.searchBox}>
           <Text style={s.searchIcon}>🔍</Text>
           <TextInput
             style={s.input}
-            placeholder="Hair, nails, massage…"
+            placeholder="Search…"
             placeholderTextColor={COLORS.textMuted}
             value={query}
             onChangeText={setQuery}
@@ -74,25 +74,26 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
             </Pressable>
           )}
         </View>
-      </View>
 
-      {/* Category filter strip */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={s.catScroll}
-        contentContainerStyle={s.catContent}
-      >
-        {allCategories.map(cat => (
-          <Pressable
-            key={cat}
-            onPress={() => setActiveCategory(cat)}
-            style={[s.catChip, activeCategory === cat && s.catChipActive]}
-          >
-            <Text style={[s.catText, activeCategory === cat && s.catTextActive]}>{cat}</Text>
-          </Pressable>
-        ))}
-      </ScrollView>
+        <View style={s.divider} />
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={s.catContent}
+          style={s.catScroll}
+        >
+          {allCategories.map(cat => (
+            <Pressable
+              key={cat}
+              onPress={() => setActiveCategory(cat)}
+              style={[s.catChip, activeCategory === cat && s.catChipActive]}
+            >
+              <Text style={[s.catText, activeCategory === cat && s.catTextActive]}>{cat}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+      </View>
 
       {/* Result count */}
       <View style={s.countRow}>
@@ -193,8 +194,10 @@ const s = StyleSheet.create({
   },
 
   searchRow: {
-    paddingHorizontal: 16,
-    paddingBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingLeft: 14,
+    paddingVertical: 8,
     backgroundColor: COLORS.bg,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
@@ -204,28 +207,31 @@ const s = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: COLORS.bgCard,
     borderRadius: RADIUS.lg,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
     borderWidth: 1,
     borderColor: COLORS.border,
+    width: 130,
   },
-  searchIcon: { fontSize: 13, marginRight: 6 },
-  input: { flex: 1, fontSize: 13, color: COLORS.text, paddingVertical: 0 },
-  clearBtn: { color: COLORS.textMuted, fontSize: 13 },
+  searchIcon: { fontSize: 12, marginRight: 5 },
+  input: { flex: 1, fontSize: 12, color: COLORS.text, paddingVertical: 0 },
+  clearBtn: { color: COLORS.textMuted, fontSize: 12 },
 
-  catScroll: {
-    backgroundColor: COLORS.bgCard,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+  divider: {
+    width: 1,
+    height: 28,
+    backgroundColor: COLORS.border,
+    marginHorizontal: 10,
   },
+
+  catScroll: { flex: 1 },
   catContent: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    gap: 8,
+    paddingRight: 14,
+    gap: 6,
     alignItems: 'center',
   },
   catChip: {
-    paddingHorizontal: 13,
+    paddingHorizontal: 11,
     paddingVertical: 6,
     borderRadius: RADIUS.md,
     borderWidth: 1,
