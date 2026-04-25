@@ -30,6 +30,23 @@ export async function apiGet(path: string, requiresAuth = false): Promise<unknow
   return json;
 }
 
+export async function apiPatch(path: string, body: unknown, requiresAuth = false): Promise<unknown> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (requiresAuth) {
+    const token = await getIdToken();
+    if (!token) throw new ApiError(401, 'Not signed in');
+    headers.Authorization = `Bearer ${token}`;
+  }
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify(body),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new ApiError(res.status, (json as Record<string, string>)?.error || `Request failed: ${res.status}`);
+  return json;
+}
+
 export async function apiPost(path: string, body: unknown, requiresAuth = false): Promise<unknown> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (requiresAuth) {

@@ -609,6 +609,20 @@ app.patch('/bookings/:id/status', authenticateUser, async (req, res) => {
   if (!canEdit) return void forbidden(res, 'Not allowed to update this booking');
 
   await ref.set({ status, ...nowTimestamps() }, { merge: true });
+
+  // When cancelling a Quasar booking, free the blocked time slots so they become available again
+  if (status === 'cancelled') {
+    const slotsBlocked = data.slotsBlocked as string[] | undefined;
+    const staffId = data.staffId as string | undefined;
+    const dateStr = data.date as string | undefined;
+    if (Array.isArray(slotsBlocked) && isNonEmptyString(staffId) && isNonEmptyString(dateStr)) {
+      const deleteOps = slotsBlocked.map(slot =>
+        db.collection('blocked_slots').doc(blockedSlotDocId(staffId!, dateStr!, slot)).delete()
+      );
+      await Promise.all(deleteOps);
+    }
+  }
+
   const updated = await ref.get();
   res.status(200).json({ id: updated.id, ...updated.data() });
 });

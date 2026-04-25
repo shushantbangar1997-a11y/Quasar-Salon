@@ -2,13 +2,20 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { CompositeScreenProps } from '@react-navigation/native';
 import { ConfirmedBooking } from './BookingsContext';
-import { QuasarCategory } from './quasarData';
+import { QuasarCategory, StaffMember } from './quasarData';
+
+export type RescheduleParams = {
+  bookingId: string;
+  stylist?: StaffMember;
+  dateIso?: string;
+  timeSlot?: string;
+};
 
 export type RootStackParamList = {
   MainTabs: { screen?: keyof TabParamList } | undefined;
   Category: { category: QuasarCategory };
   Cart: undefined;
-  Booking: undefined;
+  Booking: { reschedule?: RescheduleParams } | undefined;
   BookingSuccess: { booking: ConfirmedBooking };
   Login: undefined;
   SignUp: undefined;

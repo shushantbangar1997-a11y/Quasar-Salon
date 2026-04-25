@@ -28,14 +28,23 @@ const DATES = Array.from({ length: 14 }, (_, i) => {
 
 type Step = 'date' | 'time' | 'stylist' | 'confirm';
 
-export default function BookingScreen({ navigation }: BookingScreenProps) {
+export default function BookingScreen({ navigation, route }: BookingScreenProps) {
   const { items, totalPrice, clearCart } = useCart();
   const { addBooking } = useBookings();
 
+  const reschedule = route?.params?.reschedule;
+
+  // For reschedule: try to find the original date in the upcoming 14 days; fall back to first date
+  const initialDate = reschedule?.dateIso
+    ? (DATES.find(d => d.iso === reschedule.dateIso) ?? DATES[0])
+    : DATES[0];
+
   const [step, setStep] = useState<Step>('date');
-  const [selectedDate, setSelectedDate] = useState(DATES[0]);
-  const [selectedTime, setSelectedTime] = useState('');
-  const [selectedStylist, setSelectedStylist] = useState<StaffMember | null>(null);
+  const [selectedDate, setSelectedDate] = useState(initialDate);
+  const [selectedTime, setSelectedTime] = useState(reschedule?.timeSlot ?? '');
+  const [selectedStylist, setSelectedStylist] = useState<StaffMember | null>(
+    reschedule?.stylist ?? null
+  );
   const [loading, setLoading] = useState(false);
 
   const [staffList, setStaffList] = useState<StaffMember[]>(QUASAR_STAFF);

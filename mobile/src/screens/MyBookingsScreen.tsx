@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet, SafeAreaView, StatusBar } from 'react-native';
+import { View, Text, ScrollView, Pressable, StyleSheet, SafeAreaView, StatusBar, Alert, ActivityIndicator } from 'react-native';
 import { useBookings, ConfirmedBooking } from '../BookingsContext';
 import { COLORS, RADIUS } from '../theme';
 import { MyBookingsScreenProps } from '../navigation';
@@ -12,12 +12,49 @@ const STATUS: Record<string, { bg: string; label: string; color: string }> = {
 };
 
 export default function MyBookingsScreen({ navigation }: MyBookingsScreenProps) {
-  const { bookings } = useBookings();
+  const { bookings, cancelBooking } = useBookings();
   const [tab, setTab] = useState<'upcoming' | 'past'>('upcoming');
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
 
   const upcoming = bookings.filter(b => b.status === 'confirmed' || b.status === 'pending');
   const past = bookings.filter(b => b.status === 'completed' || b.status === 'cancelled');
   const list = tab === 'upcoming' ? upcoming : past;
+
+  const handleCancel = (b: ConfirmedBooking) => {
+    Alert.alert(
+      'Cancel Booking',
+      `Are you sure you want to cancel your appointment on ${b.date} at ${b.time}? This cannot be undone.`,
+      [
+        { text: 'Keep Booking', style: 'cancel' },
+        {
+          text: 'Cancel Booking',
+          style: 'destructive',
+          onPress: async () => {
+            setCancellingId(b.id);
+            try {
+              await cancelBooking(b.id);
+            } catch (err: unknown) {
+              const message = err instanceof Error ? err.message : 'Failed to cancel booking';
+              Alert.alert('Error', message);
+            } finally {
+              setCancellingId(null);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleReschedule = (b: ConfirmedBooking) => {
+    navigation.navigate('Booking', {
+      reschedule: {
+        bookingId: b.id,
+        stylist: b.stylist ?? undefined,
+        dateIso: b.dateIso,
+        timeSlot: b.time,
+      },
+    });
+  };
 
   return (
     <SafeAreaView style={s.safe}>
@@ -48,6 +85,8 @@ export default function MyBookingsScreen({ navigation }: MyBookingsScreenProps) 
         ) : (
           list.map((b: ConfirmedBooking) => {
             const sc = STATUS[b.status] || STATUS.pending;
+            const isCancelling = cancellingId === b.id;
+            const isUpcoming = b.status === 'confirmed' || b.status === 'pending';
             return (
               <View key={b.id} style={s.card}>
                 {/* Card top */}
@@ -85,10 +124,27 @@ export default function MyBookingsScreen({ navigation }: MyBookingsScreenProps) 
                 </View>
 
                 {/* Actions */}
-                {(b.status === 'confirmed' || b.status === 'pending') && (
-                  <Pressable style={s.cancelBtn}>
-                    <Text style={s.cancelText}>Cancel Booking</Text>
-                  </Pressable>
+                {isUpcoming && (
+                  <View style={s.actionsRow}>
+                    <Pressable
+                      style={[s.rescheduleBtn, isCancelling && s.btnDisabled]}
+                      onPress={() => handleReschedule(b)}
+                      disabled={isCancelling}
+                    >
+                      <Text style={s.rescheduleText}>Reschedule</Text>
+                    </Pressable>
+                    <Pressable
+                      style={[s.cancelBtn, isCancelling && s.btnDisabled]}
+                      onPress={() => handleCancel(b)}
+                      disabled={isCancelling}
+                    >
+                      {isCancelling ? (
+                        <ActivityIndicator size="small" color={COLORS.error} />
+                      ) : (
+                        <Text style={s.cancelText}>Cancel</Text>
+                      )}
+                    </Pressable>
+                  </View>
                 )}
                 {b.status === 'completed' && (
                   <Pressable style={s.rebookBtn} onPress={() => navigation.navigate('Home')}>
@@ -131,8 +187,12 @@ const s = StyleSheet.create({
   divider: { height: 1, backgroundColor: COLORS.border, marginVertical: 12 },
   metaRow: { flexDirection: 'row', justifyContent: 'space-between' },
   meta: { fontSize: 13, color: COLORS.textSecondary },
-  cancelBtn: { marginTop: 12, borderWidth: 1, borderColor: COLORS.error, borderRadius: RADIUS.md, padding: 10, alignItems: 'center' },
+  actionsRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  cancelBtn: { flex: 1, borderWidth: 1, borderColor: COLORS.error, borderRadius: RADIUS.md, padding: 10, alignItems: 'center', justifyContent: 'center' },
   cancelText: { color: COLORS.error, fontSize: 13, fontWeight: '600' },
+  rescheduleBtn: { flex: 1, borderWidth: 1, borderColor: COLORS.primary, borderRadius: RADIUS.md, padding: 10, alignItems: 'center' },
+  rescheduleText: { color: COLORS.primary, fontSize: 13, fontWeight: '600' },
   rebookBtn: { marginTop: 12, borderWidth: 1, borderColor: COLORS.primary, borderRadius: RADIUS.md, padding: 10, alignItems: 'center' },
   rebookText: { color: COLORS.primary, fontSize: 13, fontWeight: '700' },
+  btnDisabled: { opacity: 0.5 },
 });

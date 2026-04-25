@@ -10,11 +10,13 @@ import { onAuthStateChanged, User } from 'firebase/auth';
 import { CartItem } from './CartContext';
 import { StaffMember } from './quasarData';
 import { auth, db, isFirebaseConfigured } from './firebase';
+import { API_BASE_URL, apiPatch } from './api';
 
 export interface ConfirmedBooking {
   id: string;
   services: CartItem[];
   date: string;
+  dateIso?: string;
   time: string;
   stylist: StaffMember | null;
   total: number;
@@ -25,6 +27,7 @@ export interface ConfirmedBooking {
 interface BookingsContextType {
   bookings: ConfirmedBooking[];
   addBooking: (booking: Omit<ConfirmedBooking, 'id' | 'createdAt'>) => ConfirmedBooking;
+  cancelBooking: (bookingId: string) => Promise<void>;
   isRealTime: boolean;
 }
 
@@ -115,6 +118,7 @@ export function BookingsProvider({ children }: { children: ReactNode }) {
               id: doc.id,
               services,
               date: (data.dateLabel as string) ?? (data.date as string) ?? '',
+              dateIso: (data.date as string | undefined),
               time: (data.timeSlot as string) ?? '',
               stylist: (data.stylist as StaffMember | null) ?? null,
               total: (data.total as number) ?? 0,
@@ -156,8 +160,20 @@ export function BookingsProvider({ children }: { children: ReactNode }) {
     return booking;
   };
 
+  const cancelBooking = async (bookingId: string): Promise<void> => {
+    if (API_BASE_URL) {
+      await apiPatch(`/bookings/${bookingId}/status`, { status: 'cancelled' }, true);
+      // onSnapshot will automatically reflect the updated status
+    } else {
+      // Offline / demo mode: update local state directly
+      setBookings(prev =>
+        prev.map(b => b.id === bookingId ? { ...b, status: 'cancelled' as const } : b)
+      );
+    }
+  };
+
   return (
-    <BookingsContext.Provider value={{ bookings, addBooking, isRealTime }}>
+    <BookingsContext.Provider value={{ bookings, addBooking, cancelBooking, isRealTime }}>
       {children}
     </BookingsContext.Provider>
   );
