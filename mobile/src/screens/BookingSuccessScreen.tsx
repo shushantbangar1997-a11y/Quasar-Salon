@@ -4,17 +4,10 @@ import {
   SafeAreaView, StatusBar,
 } from 'react-native';
 import { COLORS, RADIUS } from '../theme';
-import { CartItem } from '../CartContext';
-import { StaffMember } from '../quasarData';
+import { ConfirmedBooking } from '../BookingsContext';
 
 export default function BookingSuccessScreen({ route, navigation }: any) {
-  const { services, date, time, stylist, total }: {
-    services: CartItem[];
-    date: string;
-    time: string;
-    stylist: StaffMember | null;
-    total: number;
-  } = route.params;
+  const { booking }: { booking: ConfirmedBooking } = route.params;
 
   return (
     <SafeAreaView style={s.safe}>
@@ -36,25 +29,27 @@ export default function BookingSuccessScreen({ route, navigation }: any) {
 
           <View style={s.row}>
             <Text style={s.rowLabel}>📅 Date</Text>
-            <Text style={s.rowValue}>{date}</Text>
+            <Text style={s.rowValue}>{booking.date}</Text>
           </View>
           <View style={s.row}>
             <Text style={s.rowLabel}>🕐 Time</Text>
-            <Text style={s.rowValue}>{time}</Text>
+            <Text style={s.rowValue}>{booking.time}</Text>
           </View>
-          {stylist && (
+          {booking.stylist && (
             <View style={s.row}>
-              <Text style={s.rowLabel}>{stylist.emoji} Stylist</Text>
-              <Text style={s.rowValue}>{stylist.name}</Text>
+              <Text style={s.rowLabel}>{booking.stylist.emoji} Stylist</Text>
+              <Text style={s.rowValue}>{booking.stylist.name}</Text>
             </View>
           )}
 
           <View style={s.divider} />
 
           <Text style={s.svcHeader}>Services</Text>
-          {services.map(item => (
+          {booking.services.map(item => (
             <View key={item.service.id} style={s.svcRow}>
-              <Text style={s.svcName} numberOfLines={2}>{item.service.name}</Text>
+              <Text style={s.svcName} numberOfLines={2}>
+                {item.qty > 1 ? `${item.qty}× ` : ''}{item.service.name}
+              </Text>
               <Text style={s.svcPrice}>₹{(item.service.price * item.qty).toLocaleString('en-IN')}</Text>
             </View>
           ))}
@@ -62,17 +57,23 @@ export default function BookingSuccessScreen({ route, navigation }: any) {
           <View style={s.divider} />
 
           <View style={s.totalRow}>
-            <Text style={s.totalLabel}>Total Paid</Text>
-            <Text style={s.totalValue}>₹{total.toLocaleString('en-IN')}</Text>
+            <Text style={s.totalLabel}>Total</Text>
+            <Text style={s.totalValue}>₹{booking.total.toLocaleString('en-IN')}</Text>
           </View>
         </View>
 
         <Text style={s.note}>We'll confirm your appointment shortly. See you at Quasar Salon!</Text>
 
-        <Pressable style={s.primaryBtn} onPress={() => navigation.navigate('Bookings')}>
+        <Pressable
+          style={s.primaryBtn}
+          onPress={() => navigation.navigate('MainTabs', { screen: 'Bookings' })}
+        >
           <Text style={s.primaryBtnText}>View My Bookings</Text>
         </Pressable>
-        <Pressable style={s.secondaryBtn} onPress={() => navigation.navigate('Home')}>
+        <Pressable
+          style={s.secondaryBtn}
+          onPress={() => navigation.navigate('MainTabs', { screen: 'Home' })}
+        >
           <Text style={s.secondaryBtnText}>Back to Home</Text>
         </Pressable>
       </ScrollView>

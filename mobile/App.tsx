@@ -6,6 +6,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { signInAnonymously } from 'firebase/auth';
 import { auth } from './src/firebase';
 import { CartProvider } from './src/CartContext';
+import { BookingsProvider } from './src/BookingsContext';
 import { COLORS } from './src/theme';
 
 import HomeScreen from './src/screens/HomeScreen';
@@ -67,6 +68,7 @@ export default function App() {
   }, []);
 
   return (
+    <BookingsProvider>
     <CartProvider>
       <NavigationContainer>
         <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="MainTabs">
@@ -80,5 +82,6 @@ export default function App() {
         </Stack.Navigator>
       </NavigationContainer>
     </CartProvider>
+    </BookingsProvider>
   );
 }

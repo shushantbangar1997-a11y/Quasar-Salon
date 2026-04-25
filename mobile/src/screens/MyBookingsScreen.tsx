@@ -1,62 +1,21 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, SafeAreaView, StatusBar } from 'react-native';
+import { useBookings, ConfirmedBooking } from '../BookingsContext';
 import { COLORS, RADIUS } from '../theme';
 
-const DEMO_BOOKINGS = [
-  {
-    id: 'b1',
-    services: ['Wash & Blow Dry', 'Derma Brightening (Without Machine)'],
-    stylist: 'Priya Sharma',
-    stylistEmoji: '💇‍♀️',
-    date: 'Tomorrow, Apr 27',
-    time: '11:00 AM',
-    total: 6148,
-    status: 'confirmed',
-  },
-  {
-    id: 'b2',
-    services: ['Gel Extensions', 'Quasar Signature Wine Pedicure'],
-    stylist: 'Anita Mehta',
-    stylistEmoji: '💅',
-    date: 'Sat, May 3',
-    time: '2:30 PM',
-    total: 5499,
-    status: 'pending',
-  },
-  {
-    id: 'b3',
-    services: ["Men's Haircut", 'Beard Color'],
-    stylist: 'Rahul Verma',
-    stylistEmoji: '✂️',
-    date: 'Mon, Apr 14',
-    time: '10:00 AM',
-    total: 1598,
-    status: 'completed',
-  },
-  {
-    id: 'b4',
-    services: ['HD Make-Up (Party)', 'Hair Do (With Bun)'],
-    stylist: 'Kavita Joshi',
-    stylistEmoji: '💄',
-    date: 'Sat, Apr 5',
-    time: '8:00 AM',
-    total: 5998,
-    status: 'completed',
-  },
-];
-
-const STATUS: Record<string, { bg: string; text: string; label: string; color: string }> = {
-  confirmed: { bg: '#0A2010', text: '#4CAF50', label: '✓ Confirmed', color: '#4CAF50' },
-  pending: { bg: '#1F1500', text: '#FFB300', label: '⏳ Pending', color: '#FFB300' },
-  completed: { bg: COLORS.bgElevated, text: COLORS.textSecondary, label: '✅ Completed', color: COLORS.textSecondary },
-  cancelled: { bg: COLORS.errorBg, text: COLORS.error, label: '✗ Cancelled', color: COLORS.error },
+const STATUS: Record<string, { bg: string; label: string; color: string }> = {
+  confirmed: { bg: '#0A2010', label: '✓ Confirmed', color: '#4CAF50' },
+  pending: { bg: '#1F1500', label: '⏳ Pending', color: '#FFB300' },
+  completed: { bg: COLORS.bgElevated, label: '✅ Completed', color: COLORS.textSecondary },
+  cancelled: { bg: COLORS.errorBg, label: '✗ Cancelled', color: COLORS.error },
 };
 
 export default function MyBookingsScreen({ navigation }: any) {
+  const { bookings } = useBookings();
   const [tab, setTab] = useState<'upcoming' | 'past'>('upcoming');
 
-  const upcoming = DEMO_BOOKINGS.filter(b => b.status === 'confirmed' || b.status === 'pending');
-  const past = DEMO_BOOKINGS.filter(b => b.status === 'completed' || b.status === 'cancelled');
+  const upcoming = bookings.filter(b => b.status === 'confirmed' || b.status === 'pending');
+  const past = bookings.filter(b => b.status === 'completed' || b.status === 'cancelled');
   const list = tab === 'upcoming' ? upcoming : past;
 
   return (
@@ -86,17 +45,17 @@ export default function MyBookingsScreen({ navigation }: any) {
             </Pressable>
           </View>
         ) : (
-          list.map(b => {
+          list.map((b: ConfirmedBooking) => {
             const sc = STATUS[b.status] || STATUS.pending;
             return (
               <View key={b.id} style={s.card}>
                 {/* Card top */}
                 <View style={s.cardTop}>
                   <View style={s.stylistEmoji}>
-                    <Text style={{ fontSize: 26 }}>{b.stylistEmoji}</Text>
+                    <Text style={{ fontSize: 26 }}>{b.stylist?.emoji || '✨'}</Text>
                   </View>
                   <View style={{ flex: 1, marginLeft: 12 }}>
-                    <Text style={s.stylistName}>{b.stylist}</Text>
+                    <Text style={s.stylistName}>{b.stylist?.name || 'Quasar Stylist'}</Text>
                     <Text style={s.serviceCount}>{b.services.length} service{b.services.length > 1 ? 's' : ''}</Text>
                   </View>
                   <View style={[s.statusBadge, { backgroundColor: sc.bg }]}>
@@ -106,8 +65,10 @@ export default function MyBookingsScreen({ navigation }: any) {
 
                 {/* Services */}
                 <View style={s.servicesBox}>
-                  {b.services.map((svc, i) => (
-                    <Text key={i} style={s.svcItem}>· {svc}</Text>
+                  {b.services.map((item, i) => (
+                    <Text key={i} style={s.svcItem}>
+                      · {item.qty > 1 ? `${item.qty}× ` : ''}{item.service.name}
+                    </Text>
                   ))}
                 </View>
 
@@ -117,7 +78,9 @@ export default function MyBookingsScreen({ navigation }: any) {
                 <View style={s.metaRow}>
                   <Text style={s.meta}>📅 {b.date}</Text>
                   <Text style={s.meta}>🕐 {b.time}</Text>
-                  <Text style={[s.meta, { color: COLORS.primary, fontWeight: '700' }]}>₹{b.total.toLocaleString('en-IN')}</Text>
+                  <Text style={[s.meta, { color: COLORS.primary, fontWeight: '700' }]}>
+                    ₹{b.total.toLocaleString('en-IN')}
+                  </Text>
                 </View>
 
                 {/* Actions */}
