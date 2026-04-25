@@ -6,17 +6,36 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web --port 5000"
   },
   "dependencies": {
+    "@expo/metro-runtime": "~3.2.3",
+    "babel-plugin-module-resolver": "^5.0.2",
     "expo": "^51.0.0",
+    "firebase": "^10.12.0",
     "react": "18.2.0",
-    "react-native": "0.74.0",
-    "firebase": "^10.12.0"
+    "react-dom": "18.2.0",
+    "react-native": "0.74.5",
+    "react-native-web": "~0.19.10"
+  },
+  "resolutions": {
+    "metro": "0.80.8",
+    "metro-config": "0.80.8",
+    "metro-resolver": "0.80.8",
+    "metro-runtime": "0.80.8",
+    "metro-source-map": "0.80.8"
+  },
+  "overrides": {
+    "metro": "0.80.8",
+    "metro-config": "0.80.8",
+    "metro-resolver": "0.80.8",
+    "metro-runtime": "0.80.8",
+    "metro-source-map": "0.80.8"
   },
   "devDependencies": {
+    "@babel/core": "^7.24.0",
     "@types/react": "~18.2.45",
-    "@types/react-native": "~0.74.0",
+    "babel-preset-expo": "~11.0.0",
     "typescript": "^5.5.0"
   },
   "private": true

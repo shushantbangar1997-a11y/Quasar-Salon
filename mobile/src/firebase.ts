@@ -1,5 +1,5 @@
-import { initializeApp, getApps } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
+import { getAuth, Auth } from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
@@ -10,5 +10,21 @@ const firebaseConfig = {
   appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
 };
 
-export const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
-export const auth = getAuth(app);
+export const isFirebaseConfigured = Boolean(
+  firebaseConfig.apiKey && firebaseConfig.projectId && firebaseConfig.appId
+);
+
+let app: FirebaseApp | null = null;
+let auth: Auth | null = null;
+
+if (isFirebaseConfigured) {
+  app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig as Record<string, string>);
+  auth = getAuth(app);
+} else {
+  // eslint-disable-next-line no-console
+  console.warn(
+    'Firebase config not provided. Set EXPO_PUBLIC_FIREBASE_* environment variables to enable auth/API.'
+  );
+}
+
+export { app, auth };
