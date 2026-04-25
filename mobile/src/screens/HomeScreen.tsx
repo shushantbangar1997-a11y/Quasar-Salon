@@ -8,6 +8,7 @@ import { QUASAR_CATEGORIES } from '../quasarData';
 import { useCart } from '../CartContext';
 import { COLORS, RADIUS } from '../theme';
 import { HomeScreenProps } from '../navigation';
+import CategoryCarousel from '../components/CategoryCarousel';
 
 const POPULAR = [
   { catId: 'hair-care', svcId: 'hc-8', label: "Men's Haircut", price: 599 },
@@ -50,25 +51,12 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
           </Pressable>
         </View>
 
-        {/* Service categories */}
+        {/* Service categories carousel */}
         <Text style={s.sectionTitle}>Our Services</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingLeft: 20, paddingRight: 8 }}>
-          {QUASAR_CATEGORIES.map(cat => (
-            <Pressable
-              key={cat.id}
-              style={s.catCard}
-              onPress={() => navigation.navigate('Category', { category: cat })}
-            >
-              <Image
-                source={typeof cat.imageUrl === 'string' ? { uri: cat.imageUrl } : cat.imageUrl}
-                style={s.catImage}
-                resizeMode="cover"
-              />
-              <Text style={s.catName} numberOfLines={2}>{cat.name}</Text>
-              <Text style={s.catCount}>{cat.services.length} services</Text>
-            </Pressable>
-          ))}
-        </ScrollView>
+        <CategoryCarousel
+          categories={QUASAR_CATEGORIES}
+          onSelect={cat => navigation.navigate('Category', { category: cat })}
+        />
 
         {/* Popular picks */}
         <Text style={s.sectionTitle}>Popular Picks</Text>
@@ -127,10 +115,6 @@ const s = StyleSheet.create({
   heroCta: { marginTop: 18, alignSelf: 'flex-start', backgroundColor: COLORS.primary, paddingHorizontal: 20, paddingVertical: 10, borderRadius: RADIUS.md },
   heroCtaText: { color: COLORS.bg, fontWeight: '700', fontSize: 14 },
   sectionTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text, paddingHorizontal: 20, marginTop: 28, marginBottom: 14 },
-  catCard: { width: 100, backgroundColor: COLORS.bgCard, borderRadius: RADIUS.lg, overflow: 'hidden', marginRight: 10, borderWidth: 1, borderColor: COLORS.border },
-  catImage: { width: '100%', height: 70, backgroundColor: COLORS.bgElevated },
-  catName: { fontSize: 11, fontWeight: '700', color: COLORS.text, textAlign: 'center', paddingHorizontal: 6, paddingTop: 8, paddingBottom: 2 },
-  catCount: { fontSize: 10, color: COLORS.primary, textAlign: 'center', paddingBottom: 10 },
   popularCard: { width: 148, backgroundColor: COLORS.bgCard, borderRadius: RADIUS.lg, overflow: 'hidden', marginRight: 12, borderWidth: 1, borderColor: COLORS.border },
   popularImage: { width: '100%', height: 90, backgroundColor: COLORS.bgElevated },
   popularName: { fontSize: 13, fontWeight: '600', color: COLORS.text, lineHeight: 18, paddingHorizontal: 10, paddingTop: 8 },
