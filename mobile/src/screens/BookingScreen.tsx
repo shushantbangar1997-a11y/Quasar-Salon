@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, ScrollView, Pressable, StyleSheet,
-  SafeAreaView, StatusBar, ActivityIndicator, Alert,
+  SafeAreaView, StatusBar, ActivityIndicator,
 } from 'react-native';
 import { useCart } from '../CartContext';
 import { useBookings } from '../BookingsContext';
@@ -46,6 +46,7 @@ export default function BookingScreen({ navigation, route }: BookingScreenProps)
     reschedule?.stylist ?? null
   );
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const [staffList, setStaffList] = useState<StaffMember[]>(QUASAR_STAFF);
   const [staffLoading, setStaffLoading] = useState(false);
@@ -111,10 +112,11 @@ export default function BookingScreen({ navigation, route }: BookingScreenProps)
   /** Confirm booking — use API when available, local state only when API is not configured */
   const handleConfirm = async () => {
     if (items.length === 0) {
-      Alert.alert('No Services', 'Your cart is empty. Please add services before booking.');
+      setErrorMsg('Your cart is empty. Please add services before booking.');
       return;
     }
 
+    setErrorMsg(null);
     setLoading(true);
 
     if (apiAvailable) {
@@ -123,11 +125,9 @@ export default function BookingScreen({ navigation, route }: BookingScreenProps)
         const freshAvailability = await fetchStaffSlots(selectedStylist!.id, selectedDate.iso, totalDuration || undefined);
         if (!freshAvailability.slots.includes(selectedTime)) {
           setLoading(false);
-          Alert.alert(
-            'Slot No Longer Available',
-            'This time slot was just taken. Please choose a different time.',
-            [{ text: 'Choose Another Time', onPress: () => { setSelectedTime(''); setStep('time'); } }]
-          );
+          setErrorMsg('This time slot was just taken. Please choose a different time.');
+          setSelectedTime('');
+          setStep('time');
           return;
         }
 
@@ -159,15 +159,13 @@ export default function BookingScreen({ navigation, route }: BookingScreenProps)
       } catch (e: unknown) {
         setLoading(false);
         if (e instanceof ApiError && e.status === 409) {
-          Alert.alert(
-            'Slot Unavailable',
-            'This time slot was just booked by someone else. Please choose a different time.',
-            [{ text: 'Choose Another Time', onPress: () => { setSelectedTime(''); setStep('time'); } }]
-          );
+          setErrorMsg('This time slot was just booked by someone else. Please choose a different time.');
+          setSelectedTime('');
+          setStep('time');
           return;
         }
         const message = e instanceof Error ? e.message : 'Something went wrong. Please try again.';
-        Alert.alert('Booking Failed', message, [{ text: 'OK' }]);
+        setErrorMsg(message);
         return;
       }
     }
@@ -209,7 +207,7 @@ export default function BookingScreen({ navigation, route }: BookingScreenProps)
     } catch (e: unknown) {
       setLoading(false);
       const message = e instanceof Error ? e.message : 'Something went wrong. Please try again.';
-      Alert.alert('Booking Failed', message, [{ text: 'OK' }]);
+      setErrorMsg(message);
     }
   };
 
@@ -404,6 +402,11 @@ export default function BookingScreen({ navigation, route }: BookingScreenProps)
       </ScrollView>
 
       <View style={s.cta}>
+        {errorMsg ? (
+          <View style={s.errorBox}>
+            <Text style={s.errorText}>⚠ {errorMsg}</Text>
+          </View>
+        ) : null}
         {step === 'date' && (
           <Pressable style={s.ctaBtn} onPress={advanceToTime}>
             <Text style={s.ctaBtnText}>Continue to Time →</Text>
@@ -523,4 +526,6 @@ const s = StyleSheet.create({
   ctaBtn: { backgroundColor: COLORS.primary, borderRadius: RADIUS.lg, padding: 16, alignItems: 'center' },
   ctaBtnDisabled: { backgroundColor: COLORS.bgElevated },
   ctaBtnText: { color: COLORS.bg, fontSize: 15, fontWeight: '800' },
+  errorBox: { backgroundColor: COLORS.errorBg, borderRadius: RADIUS.md, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: COLORS.error },
+  errorText: { color: COLORS.error, fontSize: 13, fontWeight: '600', lineHeight: 18 },
 });
