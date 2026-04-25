@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Animated, Easing, StyleSheet, Dimensions } from 'react-native';
+import { View, Animated, Easing, StyleSheet, Dimensions, StatusBar } from 'react-native';
 import QuasarLogoSvg from '../components/QuasarLogoSvg';
 
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -37,6 +37,7 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
 
   return (
     <Animated.View style={[s.container, { opacity: fadeOut }]}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       {/* Muted outline layer — always visible */}
       <View style={s.logoWrapper}>
         <View style={{ position: 'absolute', top: 0, left: 0 }}>

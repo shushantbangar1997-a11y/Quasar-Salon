@@ -1,5 +1,5 @@
 import React from 'react';
-import Svg, { Path, Circle, Text as SvgText, G, Defs, ClipPath, Rect } from 'react-native-svg';
+import Svg, { Path, Text as SvgText } from 'react-native-svg';
 
 interface QuasarLogoSvgProps {
   width?: number;
