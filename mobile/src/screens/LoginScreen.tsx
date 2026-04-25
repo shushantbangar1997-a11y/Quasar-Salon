@@ -1,178 +1,87 @@
-import React, { useState } from "react";
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-} from "react-native";
-import { useNavigation } from "@react-navigation/native";
-import { AuthService } from "../services/authService";
+import React, { useState } from 'react';
+import { View, Text, TextInput, Pressable, StyleSheet, Alert, KeyboardAvoidingView, Platform, SafeAreaView } from 'react-native';
+import { signInWithEmailAndPassword, signInAnonymously } from 'firebase/auth';
+import { auth } from '../firebase';
 
-const LoginScreen = () => {
-  const navigation = useNavigation();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+const P = '#E91E8C';
+
+export default function LoginScreen({ navigation }: any) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert("Error", "Please fill in all fields");
-      return;
-    }
-
-    setIsLoading(true);
+    if (!email || !password) { Alert.alert('Error', 'Please fill in all fields'); return; }
+    if (!auth) { Alert.alert('Error', 'Firebase not configured'); return; }
+    setLoading(true);
     try {
-      await AuthService.signIn(email, password);
-    } catch (error: any) {
-      Alert.alert("Error", error.message);
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (e: any) {
+      Alert.alert('Login Failed', e.message);
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  const handleGoogleSignIn = async () => {
-    // Implement Google Sign-In
-    Alert.alert("Info", "Google Sign-In will be implemented");
+  const handleGuest = async () => {
+    if (!auth) return;
+    setLoading(true);
+    try {
+      await signInAnonymously(auth);
+    } catch (e: any) {
+      Alert.alert('Error', e.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-    >
-      <View style={styles.content}>
-        <Text style={styles.title}>Beauty Booking</Text>
-        <Text style={styles.subtitle}>Sign in to your account</Text>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <View style={s.container}>
+          <View style={s.logoArea}>
+            <View style={s.logoCircle}><Text style={{ fontSize: 50 }}>💇‍♀️</Text></View>
+            <Text style={s.appName}>BeautyBooking</Text>
+            <Text style={s.tagline}>Book your perfect look</Text>
+          </View>
 
-        <View style={styles.form}>
-          <TextInput
-            style={styles.input}
-            placeholder="Email"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
+          <View style={s.form}>
+            <TextInput style={s.input} placeholder="Email" placeholderTextColor="#aaa" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
+            <TextInput style={s.input} placeholder="Password" placeholderTextColor="#aaa" value={password} onChangeText={setPassword} secureTextEntry autoCapitalize="none" />
 
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
+            <Pressable style={s.primaryBtn} onPress={handleLogin} disabled={loading}>
+              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>{loading ? 'Signing in…' : 'Sign In'}</Text>
+            </Pressable>
 
-          <TouchableOpacity
-            style={[styles.button, styles.primaryButton]}
-            onPress={handleLogin}
-            disabled={isLoading}
-          >
-            <Text style={styles.buttonText}>
-              {isLoading ? "Signing In..." : "Sign In"}
-            </Text>
-          </TouchableOpacity>
+            <View style={s.divider}>
+              <View style={s.dividerLine} /><Text style={s.dividerText}>or</Text><View style={s.dividerLine} />
+            </View>
 
-          <TouchableOpacity
-            style={[styles.button, styles.googleButton]}
-            onPress={handleGoogleSignIn}
-          >
-            <Text style={styles.googleButtonText}>Sign in with Google</Text>
-          </TouchableOpacity>
+            <Pressable style={s.guestBtn} onPress={handleGuest} disabled={loading}>
+              <Text style={{ color: '#1A1A2E', fontSize: 15, fontWeight: '600' }}>Continue as Guest</Text>
+            </Pressable>
 
-          <TouchableOpacity
-            style={styles.linkButton}
-            onPress={() => navigation.navigate("SignUp" as never)}
-          >
-            <Text style={styles.linkText}>
-              Don't have an account? <Text style={styles.link}>Sign Up</Text>
-            </Text>
-          </TouchableOpacity>
+            <Pressable onPress={() => navigation.navigate('SignUp')} style={{ marginTop: 20, alignItems: 'center' }}>
+              <Text style={{ color: '#8E8E93', fontSize: 14 }}>Don't have an account? <Text style={{ color: P, fontWeight: '700' }}>Sign Up</Text></Text>
+            </Pressable>
+          </View>
         </View>
-      </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
-};
+}
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-  },
-  content: {
-    flex: 1,
-    justifyContent: "center",
-    paddingHorizontal: 24,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: "bold",
-    color: "#1A1A1A",
-    textAlign: "center",
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: "#8E8E93",
-    textAlign: "center",
-    marginBottom: 48,
-  },
-  form: {
-    width: "100%",
-  },
-  input: {
-    height: 56,
-    borderWidth: 1,
-    borderColor: "#E5E5EA",
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    marginBottom: 16,
-    backgroundColor: "#F8F8F8",
-  },
-  button: {
-    height: 56,
-    borderRadius: 12,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  primaryButton: {
-    backgroundColor: "#FF6B9D",
-  },
-  googleButton: {
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E5E5EA",
-  },
-  buttonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  googleButtonText: {
-    color: "#1A1A1A",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  linkButton: {
-    alignItems: "center",
-    marginTop: 16,
-  },
-  linkText: {
-    fontSize: 14,
-    color: "#8E8E93",
-  },
-  link: {
-    color: "#FF6B9D",
-    fontWeight: "600",
-  },
+const s = StyleSheet.create({
+  container: { flex: 1, paddingHorizontal: 24, justifyContent: 'center' },
+  logoArea: { alignItems: 'center', marginBottom: 40 },
+  logoCircle: { width: 100, height: 100, borderRadius: 50, backgroundColor: '#FFF0F7', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  appName: { fontSize: 32, fontWeight: '800', color: '#1A1A2E' },
+  tagline: { fontSize: 16, color: '#8E8E93', marginTop: 6 },
+  form: {},
+  input: { height: 54, borderWidth: 1, borderColor: '#E5E5EA', borderRadius: 14, paddingHorizontal: 16, fontSize: 15, marginBottom: 14, backgroundColor: '#F8F9FA', color: '#1A1A2E' },
+  primaryBtn: { height: 54, backgroundColor: '#E91E8C', borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
+  divider: { flexDirection: 'row', alignItems: 'center', marginVertical: 20 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: '#E5E5EA' },
+  dividerText: { marginHorizontal: 12, color: '#8E8E93', fontSize: 13 },
+  guestBtn: { height: 54, borderWidth: 1.5, borderColor: '#E5E5EA', borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
 });
-
-export default LoginScreen;

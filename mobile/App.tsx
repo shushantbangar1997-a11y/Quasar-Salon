@@ -1,188 +1,109 @@
 import React, { useEffect, useState } from 'react';
-import { SafeAreaView, Text, View, Pressable, FlatList, ActivityIndicator, TextInput, ScrollView } from 'react-native';
+import { ActivityIndicator, View, Text } from 'react-native';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { onAuthStateChanged, signInAnonymously } from 'firebase/auth';
-import { auth, isFirebaseConfigured } from './src/firebase';
-import { apiGet, apiPost } from './src/api';
+import { auth } from './src/firebase';
 
-type Provider = {
-  id: string;
-  name: string;
-  bio: string;
-  categories: string[];
-  location: { city: string };
+import HomeScreen from './src/screens/HomeScreen';
+import SearchScreen from './src/screens/SearchScreen';
+import MyBookingsScreen from './src/screens/MyBookingsScreen';
+import ProfileScreen from './src/screens/ProfileScreen';
+import HairdresserDetailScreen from './src/screens/HairdresserDetailScreen';
+import BookingScreen from './src/screens/BookingScreen';
+import LoginScreen from './src/screens/LoginScreen';
+import SignUpScreen from './src/screens/SignUpScreen';
+
+const Stack = createNativeStackNavigator();
+const Tab = createBottomTabNavigator();
+
+const TAB_ICONS: Record<string, string> = {
+  Home: '🏠', Search: '🔍', Bookings: '📅', Profile: '👤',
 };
 
+function MainTabs() {
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        headerShown: false,
+        tabBarActiveTintColor: '#E91E8C',
+        tabBarInactiveTintColor: '#8E8E93',
+        tabBarStyle: {
+          backgroundColor: '#fff',
+          borderTopColor: '#F0F0F0',
+          height: 60,
+          paddingBottom: 8,
+          paddingTop: 6,
+        },
+        tabBarIcon: ({ color, size }: { color: string; size: number }) => (
+          <Text style={{ fontSize: size - 4, color }}>{TAB_ICONS[route.name]}</Text>
+        ),
+      })}
+    >
+      <Tab.Screen name="Home" component={HomeScreen} />
+      <Tab.Screen name="Search" component={SearchScreen} />
+      <Tab.Screen name="Bookings" component={MyBookingsScreen} />
+      <Tab.Screen name="Profile" component={ProfileScreen} />
+    </Tab.Navigator>
+  );
+}
+
 export default function App() {
-  const [loading, setLoading] = useState(true);
-  const [providers, setProviders] = useState<Provider[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [notes, setNotes] = useState('');
-  const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null);
   const [signedIn, setSignedIn] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!auth) {
+      setSignedIn(true);
       setLoading(false);
       return;
     }
-    const unsub = onAuthStateChanged(auth, (user) => {
-      setSignedIn(!!user);
-      setLoading(false);
+
+    const unsub = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        setSignedIn(true);
+        setLoading(false);
+      } else {
+        try {
+          await signInAnonymously(auth);
+        } catch (e) {
+          console.warn('Anonymous sign-in failed (enable in Firebase Console):', e);
+          setSignedIn(true);
+          setLoading(false);
+        }
+      }
     });
+
     return unsub;
-  }, []);
-
-  async function ensureSignedIn() {
-    if (!auth) {
-      setError('Firebase is not configured. Set EXPO_PUBLIC_FIREBASE_* env vars.');
-      return;
-    }
-    if (auth.currentUser) return;
-    await signInAnonymously(auth);
-  }
-
-  async function loadProviders() {
-    setError(null);
-    try {
-      const health = await apiGet('/health');
-      console.log('health:', health);
-      const list = await apiGet('/providers');
-      setProviders(Array.isArray(list) ? list : []);
-    } catch (e: any) {
-      setError(e.message || String(e));
-    }
-  }
-
-  async function createTestBooking() {
-    if (!selectedProvider) return;
-    setError(null);
-    try {
-      await ensureSignedIn();
-      const providerFull = await apiGet(`/providers/${selectedProvider.id}`);
-      const service = providerFull.services?.[0];
-      if (!service) throw new Error('Provider has no services');
-
-      const payload = {
-        providerId: selectedProvider.id,
-        service,
-        date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-        notes: notes || undefined,
-      };
-
-      const booking = await apiPost('/bookings', payload, true);
-      alert(`Booking created: ${booking.id}`);
-      setNotes('');
-    } catch (e: any) {
-      setError(e.message || String(e));
-    }
-  }
-
-  useEffect(() => {
-    loadProviders();
   }, []);
 
   if (loading) {
     return (
-      <SafeAreaView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator />
-      </SafeAreaView>
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' }}>
+        <Text style={{ fontSize: 60, marginBottom: 20 }}>💇‍♀️</Text>
+        <Text style={{ fontSize: 24, fontWeight: '800', color: '#1A1A2E', marginBottom: 8 }}>BeautyBooking</Text>
+        <ActivityIndicator color="#E91E8C" size="large" style={{ marginTop: 16 }} />
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, padding: 16 }}>
-      <ScrollView>
-        <Text style={{ fontSize: 24, fontWeight: '600' }}>BeautyBooking (MVP)</Text>
-
-        {!isFirebaseConfigured ? (
-          <View
-            style={{
-              marginTop: 12,
-              padding: 12,
-              borderRadius: 10,
-              backgroundColor: '#fff8e1',
-              borderColor: '#ffd54f',
-              borderWidth: 1,
-            }}
-          >
-            <Text style={{ fontWeight: '600', marginBottom: 4 }}>Firebase not configured</Text>
-            <Text>
-              Set EXPO_PUBLIC_FIREBASE_API_KEY, EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
-              EXPO_PUBLIC_FIREBASE_PROJECT_ID, EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
-              EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID, EXPO_PUBLIC_FIREBASE_APP_ID and
-              EXPO_PUBLIC_API_BASE_URL, then restart the workflow.
-            </Text>
-          </View>
-        ) : null}
-
-        <View style={{ marginTop: 12, flexDirection: 'row', gap: 12 }}>
-          <Pressable onPress={loadProviders} style={{ padding: 12, borderRadius: 10, backgroundColor: '#111' }}>
-            <Text style={{ color: 'white' }}>Refresh providers</Text>
-          </Pressable>
-          <Pressable onPress={ensureSignedIn} style={{ padding: 12, borderRadius: 10, backgroundColor: '#333' }}>
-            <Text style={{ color: 'white' }}>{signedIn ? 'Signed in' : 'Anonymous sign-in'}</Text>
-          </Pressable>
-        </View>
-
-        {error ? <Text style={{ color: 'crimson', marginTop: 10 }}>{error}</Text> : null}
-
-        <Text style={{ marginTop: 16, fontSize: 18, fontWeight: '600' }}>Providers</Text>
-
-        <FlatList
-          style={{ marginTop: 8 }}
-          data={providers}
-          keyExtractor={(item) => item.id}
-          scrollEnabled={false}
-          renderItem={({ item }) => (
-            <Pressable
-              onPress={() => setSelectedProvider(item)}
-              style={{
-                padding: 12,
-                borderRadius: 12,
-                borderWidth: 1,
-                borderColor: selectedProvider?.id === item.id ? '#111' : '#ddd',
-                marginBottom: 10,
-              }}
-            >
-              <Text style={{ fontSize: 16, fontWeight: '600' }}>{item.name}</Text>
-              <Text style={{ opacity: 0.8 }}>{item.location?.city}</Text>
-              <Text numberOfLines={2} style={{ marginTop: 6, opacity: 0.8 }}>
-                {item.bio}
-              </Text>
-              <Text style={{ marginTop: 6, opacity: 0.7 }}>
-                {Array.isArray(item.categories) ? item.categories.join(', ') : ''}
-              </Text>
-            </Pressable>
-          )}
-        />
-
-        <View style={{ borderTopWidth: 1, borderTopColor: '#eee', paddingTop: 12, marginTop: 12 }}>
-          <Text style={{ fontSize: 16, fontWeight: '600' }}>
-            Create test booking {selectedProvider ? `with ${selectedProvider.name}` : '(select a provider)'}
-          </Text>
-
-          <TextInput
-            value={notes}
-            onChangeText={setNotes}
-            placeholder="Notes (optional)"
-            style={{ borderWidth: 1, borderColor: '#ddd', padding: 10, borderRadius: 10, marginTop: 8 }}
-          />
-
-          <Pressable
-            disabled={!selectedProvider}
-            onPress={createTestBooking}
-            style={{
-              padding: 12,
-              borderRadius: 10,
-              backgroundColor: selectedProvider ? '#111' : '#aaa',
-              marginTop: 10,
-              alignItems: 'center',
-            }}
-          >
-            <Text style={{ color: 'white' }}>Create booking (requires sign-in)</Text>
-          </Pressable>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+    <NavigationContainer>
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        {signedIn ? (
+          <>
+            <Stack.Screen name="MainTabs" component={MainTabs} />
+            <Stack.Screen name="ProviderDetail" component={HairdresserDetailScreen} />
+            <Stack.Screen name="Booking" component={BookingScreen} />
+          </>
+        ) : (
+          <>
+            <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="SignUp" component={SignUpScreen} />
+          </>
+        )}
+      </Stack.Navigator>
+    </NavigationContainer>
   );
 }
