@@ -31,7 +31,7 @@ export default function CategoryScreen({ route, navigation }: CategoryScreenProp
 
   return (
     <SafeAreaView style={s.safe}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.bg} />
 
       {/* Header */}
       <View style={s.header}>
@@ -136,10 +136,10 @@ const s = StyleSheet.create({
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
   metaDuration: { fontSize: 12, color: COLORS.textSecondary },
   genderTag: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
-  genderTagWomen: { backgroundColor: '#3A1A2A' },
-  genderTagMen: { backgroundColor: '#1A2A3A' },
-  genderTagBoth: { backgroundColor: '#1A2A1A' },
-  genderText: { fontSize: 10, color: COLORS.textSecondary, fontWeight: '600' },
+  genderTagWomen: { backgroundColor: '#FFE4F0' },
+  genderTagMen: { backgroundColor: '#E0EEFF' },
+  genderTagBoth: { backgroundColor: '#E8F5E9' },
+  genderText: { fontSize: 10, color: COLORS.text, fontWeight: '600' },
   price: { fontSize: 17, fontWeight: '800', color: COLORS.primary, marginTop: 8 },
   addWrap: { alignItems: 'center' },
   addBtn: { borderWidth: 1.5, borderColor: COLORS.primary, paddingHorizontal: 16, paddingVertical: 8, borderRadius: RADIUS.sm },

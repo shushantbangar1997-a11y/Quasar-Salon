@@ -1,23 +1,23 @@
 export const COLORS = {
-  bg: '#0D0D0D',
-  bgCard: '#1A1A1A',
-  bgElevated: '#222222',
+  bg: '#FFFFFF',
+  bgCard: '#FAF8F5',
+  bgElevated: '#F5F0E8',
   primary: '#C9A84C',
   primaryLight: '#E8C97A',
-  primaryDim: '#2A2216',
-  text: '#F5F0E8',
-  textSecondary: '#A89880',
-  textMuted: '#6B6055',
-  border: '#2A2A2A',
-  borderLight: '#333333',
+  primaryDim: '#FDF6E8',
+  text: '#111111',
+  textSecondary: '#5C4033',
+  textMuted: '#9C8878',
+  border: '#E8DDD4',
+  borderLight: '#F0EBE4',
   white: '#FFFFFF',
   success: '#2E7D32',
-  successBg: '#0A1F0A',
-  warning: '#F57F17',
-  warningBg: '#1F1500',
+  successBg: '#E8F5E9',
+  warning: '#E65100',
+  warningBg: '#FFF3E0',
   error: '#C62828',
-  errorBg: '#1F0808',
-  grey: '#333333',
+  errorBg: '#FFEBEE',
+  grey: '#9C8878',
 };
 
 export const FONTS = {
@@ -41,10 +41,10 @@ export const RADIUS = {
 
 export const SHADOW = {
   card: {
-    shadowColor: COLORS.primary,
-    shadowOpacity: 0.08,
+    shadowColor: '#000000',
+    shadowOpacity: 0.06,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 2 },
-    elevation: 4,
+    elevation: 3,
   },
 };

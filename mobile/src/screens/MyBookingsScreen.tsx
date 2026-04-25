@@ -5,8 +5,8 @@ import { COLORS, RADIUS } from '../theme';
 import { MyBookingsScreenProps } from '../navigation';
 
 const STATUS: Record<string, { bg: string; label: string; color: string }> = {
-  confirmed: { bg: '#0A2010', label: '✓ Confirmed', color: '#4CAF50' },
-  pending: { bg: '#1F1500', label: '⏳ Pending', color: '#FFB300' },
+  confirmed: { bg: COLORS.successBg, label: '✓ Confirmed', color: COLORS.success },
+  pending: { bg: '#FFF8E1', label: '⏳ Pending', color: '#B8860B' },
   completed: { bg: COLORS.bgElevated, label: '✅ Completed', color: COLORS.textSecondary },
   cancelled: { bg: COLORS.errorBg, label: '✗ Cancelled', color: COLORS.error },
 };
@@ -58,7 +58,7 @@ export default function MyBookingsScreen({ navigation }: MyBookingsScreenProps) 
 
   return (
     <SafeAreaView style={s.safe}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.bg} />
 
       <View style={s.header}>
         <Text style={s.title}>My Bookings</Text>

@@ -198,7 +198,7 @@ export default function BookingScreen({ navigation, route }: BookingScreenProps)
 
   return (
     <SafeAreaView style={s.safe}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.bg} />
 
       <View style={s.header}>
         <Pressable onPress={goBack}>
@@ -472,7 +472,7 @@ const s = StyleSheet.create({
   spTagText: { fontSize: 10, color: COLORS.textSecondary },
   textDim: { color: COLORS.textMuted },
   availBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, alignSelf: 'flex-start' },
-  availBadgeOn: { backgroundColor: '#0A2010' },
+  availBadgeOn: { backgroundColor: COLORS.successBg },
   availBadgeOff: { backgroundColor: COLORS.errorBg },
   availText: { fontSize: 11, fontWeight: '700', color: COLORS.primary },
   liveNotice: { backgroundColor: COLORS.primaryDim, borderRadius: RADIUS.md, padding: 10, marginBottom: 16, borderWidth: 1, borderColor: COLORS.border },

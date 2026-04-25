@@ -37,8 +37,8 @@ const DEMO_BOOKINGS: ConfirmedBooking[] = [
   {
     id: 'demo-b3',
     services: [
-      { service: { id: 'hc-8', name: "Men's Haircut", price: 599, durationMins: 30, gender: 'Men' }, category: { id: 'hair-care', name: 'Hair Care', icon: '💇‍♀️', services: [] }, qty: 1 },
-      { service: { id: 'hc-10', name: 'Beard Color', price: 999, durationMins: 30, gender: 'Men' }, category: { id: 'hair-care', name: 'Hair Care', icon: '💇‍♀️', services: [] }, qty: 1 },
+      { service: { id: 'hc-8', name: "Men's Haircut", price: 599, durationMins: 30, gender: 'Men' }, category: { id: 'hair-care', name: 'Hair Care', icon: '💇‍♀️', imageUrl: '', services: [] }, qty: 1 },
+      { service: { id: 'hc-10', name: 'Beard Color', price: 999, durationMins: 30, gender: 'Men' }, category: { id: 'hair-care', name: 'Hair Care', icon: '💇‍♀️', imageUrl: '', services: [] }, qty: 1 },
     ],
     date: 'Mon, Apr 14',
     time: '10:00 AM',
@@ -50,8 +50,8 @@ const DEMO_BOOKINGS: ConfirmedBooking[] = [
   {
     id: 'demo-b4',
     services: [
-      { service: { id: 'mu-3', name: 'HD Make-Up (Party)', price: 4499, durationMins: 75, gender: 'Women' }, category: { id: 'makeup', name: 'Make-Up', icon: '💄', services: [] }, qty: 1 },
-      { service: { id: 'mu-12', name: 'Hair Do (With Bun)', price: 1499, durationMins: 60, gender: 'Women' }, category: { id: 'makeup', name: 'Make-Up', icon: '💄', services: [] }, qty: 1 },
+      { service: { id: 'mu-3', name: 'HD Make-Up (Party)', price: 4499, durationMins: 75, gender: 'Women' }, category: { id: 'makeup', name: 'Make-Up', icon: '💄', imageUrl: '', services: [] }, qty: 1 },
+      { service: { id: 'mu-12', name: 'Hair Do (With Bun)', price: 1499, durationMins: 60, gender: 'Women' }, category: { id: 'makeup', name: 'Make-Up', icon: '💄', imageUrl: '', services: [] }, qty: 1 },
     ],
     date: 'Sat, Apr 5',
     time: '8:00 AM',
@@ -109,6 +109,7 @@ export function BookingsProvider({ children }: { children: ReactNode }) {
                 id: s.category ?? '',
                 name: s.category ?? '',
                 icon: '✂️',
+                imageUrl: '',
                 services: [],
               },
               qty: s.qty ?? 1,

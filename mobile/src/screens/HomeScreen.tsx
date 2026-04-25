@@ -7,14 +7,15 @@ import { QUASAR_CATEGORIES } from '../quasarData';
 import { useCart } from '../CartContext';
 import { COLORS, RADIUS } from '../theme';
 import { HomeScreenProps } from '../navigation';
+import QuasarLogoSvg from '../components/QuasarLogoSvg';
 
 const POPULAR = [
-  { catId: 'hair-care', svcId: 'hc-8', label: "Men's Haircut", price: 599, icon: '✂️' },
-  { catId: 'facials', svcId: 'fa-2', label: 'Red Wine Facial', price: 3999, icon: '🍷' },
-  { catId: 'nails', svcId: 'na-4', label: 'Gel Polish', price: 999, icon: '💅' },
-  { catId: 'massages', svcId: 'ms-1', label: 'Head Massage', price: 1000, icon: '💆' },
-  { catId: 'makeup', svcId: 'mu-3', label: 'HD Make-Up', price: 4499, icon: '💄' },
-  { catId: 'body', svcId: 'bd-1', label: 'Swedish Therapy', price: 2500, icon: '🛁' },
+  { catId: 'hair-care', svcId: 'hc-8', label: "Men's Haircut", price: 599 },
+  { catId: 'facials', svcId: 'fa-2', label: 'Red Wine Facial', price: 3999 },
+  { catId: 'nails', svcId: 'na-4', label: 'Gel Polish', price: 999 },
+  { catId: 'massages', svcId: 'ms-1', label: 'Head Massage', price: 1000 },
+  { catId: 'makeup', svcId: 'mu-3', label: 'HD Make-Up', price: 4499 },
+  { catId: 'body', svcId: 'bd-1', label: 'Swedish Therapy', price: 2500 },
 ];
 
 export default function HomeScreen({ navigation }: HomeScreenProps) {
@@ -22,18 +23,17 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 
   return (
     <SafeAreaView style={s.safe}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.bg} />
       <ScrollView style={s.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: totalItems > 0 ? 100 : 40 }}>
 
         {/* Header */}
         <View style={s.header}>
-          <View>
-            <Text style={s.tagline}>Welcome to</Text>
-            <Image
-              source={require('../../assets/quasar-logo.jpg')}
-              style={s.logo}
-              resizeMode="contain"
-            />
+          <View style={s.logoRow}>
+            <QuasarLogoSvg width={44} height={58} color={COLORS.primary} showText={false} />
+            <View style={s.logoTextWrap}>
+              <Text style={s.logoName}>QUASAR</Text>
+              <Text style={s.logoTagline}>Luxury Salon</Text>
+            </View>
           </View>
           <Pressable style={s.profileBtn} onPress={() => navigation.navigate('Profile')}>
             <Text style={{ fontSize: 20 }}>👤</Text>
@@ -58,7 +58,11 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
               style={s.catCard}
               onPress={() => navigation.navigate('Category', { category: cat })}
             >
-              <Text style={s.catIcon}>{cat.icon}</Text>
+              <Image
+                source={{ uri: cat.imageUrl }}
+                style={s.catImage}
+                resizeMode="cover"
+              />
               <Text style={s.catName} numberOfLines={2}>{cat.name}</Text>
               <Text style={s.catCount}>{cat.services.length} services</Text>
             </Pressable>
@@ -76,9 +80,11 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
                 style={s.popularCard}
                 onPress={() => navigation.navigate('Category', { category: cat })}
               >
-                <View style={s.popularIconWrap}>
-                  <Text style={{ fontSize: 28 }}>{p.icon}</Text>
-                </View>
+                <Image
+                  source={{ uri: cat.imageUrl }}
+                  style={s.popularImage}
+                  resizeMode="cover"
+                />
                 <Text style={s.popularName} numberOfLines={2}>{p.label}</Text>
                 <Text style={s.popularPrice}>₹{p.price.toLocaleString('en-IN')}</Text>
               </Pressable>
@@ -109,24 +115,26 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.bg },
   scroll: { flex: 1 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 12, paddingBottom: 4 },
-  tagline: { fontSize: 12, color: COLORS.textMuted, letterSpacing: 2, textTransform: 'uppercase' },
-  logo: { width: 160, height: 48 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
+  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  logoTextWrap: { justifyContent: 'center' },
+  logoName: { fontSize: 18, fontWeight: '800', color: COLORS.primary, letterSpacing: 3 },
+  logoTagline: { fontSize: 10, color: COLORS.textMuted, letterSpacing: 1.5, textTransform: 'uppercase' },
   profileBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: COLORS.bgElevated, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.border },
-  hero: { marginHorizontal: 20, marginTop: 16, marginBottom: 8, backgroundColor: COLORS.bgCard, borderRadius: RADIUS.xl, padding: 24, borderWidth: 1, borderColor: COLORS.primaryDim },
+  hero: { marginHorizontal: 20, marginTop: 8, marginBottom: 8, backgroundColor: COLORS.bgCard, borderRadius: RADIUS.xl, padding: 24, borderWidth: 1, borderColor: COLORS.primaryDim },
   heroTitle: { fontSize: 26, fontWeight: '800', color: COLORS.text, lineHeight: 34 },
   heroSub: { fontSize: 14, color: COLORS.textSecondary, marginTop: 6 },
   heroCta: { marginTop: 18, alignSelf: 'flex-start', backgroundColor: COLORS.primary, paddingHorizontal: 20, paddingVertical: 10, borderRadius: RADIUS.md },
   heroCtaText: { color: COLORS.bg, fontWeight: '700', fontSize: 14 },
   sectionTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text, paddingHorizontal: 20, marginTop: 28, marginBottom: 14 },
-  catCard: { width: 90, backgroundColor: COLORS.bgCard, borderRadius: RADIUS.lg, padding: 14, marginRight: 10, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center' },
-  catIcon: { fontSize: 28, marginBottom: 8 },
-  catName: { fontSize: 12, fontWeight: '700', color: COLORS.text, textAlign: 'center' },
-  catCount: { fontSize: 10, color: COLORS.primary, marginTop: 4 },
-  popularCard: { width: 140, backgroundColor: COLORS.bgCard, borderRadius: RADIUS.lg, padding: 14, marginRight: 12, borderWidth: 1, borderColor: COLORS.border },
-  popularIconWrap: { width: 52, height: 52, borderRadius: 26, backgroundColor: COLORS.primaryDim, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
-  popularName: { fontSize: 13, fontWeight: '600', color: COLORS.text, lineHeight: 18 },
-  popularPrice: { fontSize: 13, fontWeight: '700', color: COLORS.primary, marginTop: 6 },
+  catCard: { width: 100, backgroundColor: COLORS.bgCard, borderRadius: RADIUS.lg, overflow: 'hidden', marginRight: 10, borderWidth: 1, borderColor: COLORS.border },
+  catImage: { width: '100%', height: 70, backgroundColor: COLORS.bgElevated },
+  catName: { fontSize: 11, fontWeight: '700', color: COLORS.text, textAlign: 'center', paddingHorizontal: 6, paddingTop: 8, paddingBottom: 2 },
+  catCount: { fontSize: 10, color: COLORS.primary, textAlign: 'center', paddingBottom: 10 },
+  popularCard: { width: 148, backgroundColor: COLORS.bgCard, borderRadius: RADIUS.lg, overflow: 'hidden', marginRight: 12, borderWidth: 1, borderColor: COLORS.border },
+  popularImage: { width: '100%', height: 90, backgroundColor: COLORS.bgElevated },
+  popularName: { fontSize: 13, fontWeight: '600', color: COLORS.text, lineHeight: 18, paddingHorizontal: 10, paddingTop: 8 },
+  popularPrice: { fontSize: 13, fontWeight: '700', color: COLORS.primary, paddingHorizontal: 10, paddingBottom: 10, marginTop: 4 },
   footer: { alignItems: 'center', marginTop: 32, marginBottom: 8 },
   footerText: { fontSize: 12, color: COLORS.textMuted, letterSpacing: 1 },
   cartBar: { position: 'absolute', bottom: 12, left: 20, right: 20, backgroundColor: COLORS.primary, borderRadius: RADIUS.lg, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, shadowColor: COLORS.primary, shadowOpacity: 0.5, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 8 },

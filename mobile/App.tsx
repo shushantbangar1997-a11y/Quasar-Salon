@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Text } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -20,6 +20,7 @@ import BookingScreen from './src/screens/BookingScreen';
 import BookingSuccessScreen from './src/screens/BookingSuccessScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import SignUpScreen from './src/screens/SignUpScreen';
+import SplashScreen from './src/screens/SplashScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<TabParamList>();
@@ -61,12 +62,17 @@ function MainTabs() {
 
 export default function App() {
   const triedAuth = useRef(false);
+  const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
     if (!auth || triedAuth.current) return;
     triedAuth.current = true;
     signInAnonymously(auth).catch(() => {});
   }, []);
+
+  if (showSplash) {
+    return <SplashScreen onFinish={() => setShowSplash(false)} />;
+  }
 
   return (
     <BookingsProvider>

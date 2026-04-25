@@ -8,7 +8,7 @@ A premium salon booking app for Quasar Salon, built with:
 ## App Overview
 
 **Quasar Salon** is a Zomato-style booking app for a luxury salon. Clients can:
-- Browse the full Quasar service menu (14 categories, 100+ services)
+- Browse the full Quasar service menu (15 categories, 100+ services)
 - Add multiple services to a cart (like food ordering)
 - Book appointments with a specific stylist
 - Select date and time slot (with availability shown)
@@ -16,23 +16,27 @@ A premium salon booking app for Quasar Salon, built with:
 
 ## Brand
 
-- Background: `#0D0D0D` (deep black)
-- Primary: `#C9A84C` (champagne gold)
-- Text: `#F5F0E8` (warm off-white)
-- Logo: `mobile/assets/quasar-logo.jpg` (crown-Q mark)
+- Background: `#FFFFFF` (white) / `#FAF8F5` (card) / `#F5F0E8` (elevated)
+- Primary: `#C9A84C` (royal gold)
+- Text: `#111111` (near-black) / `#5C4033` (secondary) / `#9C8878` (muted)
+- Logo: `mobile/src/components/QuasarLogoSvg.tsx` (custom SVG — crown + Q-ring + sparkle, no JPEG bg)
+- Splash: `mobile/src/screens/SplashScreen.tsx` — animated gold fill-from-bottom on white background
 
 ## File Structure
 
 ```
 mobile/
-  App.tsx                        — Root entry point. Wraps with CartProvider + Navigation.
-  assets/quasar-logo.jpg         — Quasar crown-Q logo
+  App.tsx                        — Root entry point. Splash screen state + navigation.
+  assets/quasar-logo.jpg         — Original JPEG logo (NOT used in-app; SVG used instead)
   src/
-    theme.ts                     — Brand colors, fonts, spacing
-    quasarData.ts                — Full service catalog + staff profiles + time slots
+    theme.ts                     — Light theme colors, fonts, spacing
+    quasarData.ts                — Full service catalog (15 categories w/ imageUrls) + staff
     CartContext.tsx               — React Context cart (add/remove/clear services)
+    components/
+      QuasarLogoSvg.tsx          — Custom SVG crown+Q-ring logo, gold color, no black background
     screens/
-      HomeScreen.tsx             — Quasar-branded home with category grid + popular picks
+      SplashScreen.tsx           — Animated splash: gold fills logo from bottom on white bg
+      HomeScreen.tsx             — Quasar-branded home with category images + popular picks
       CategoryScreen.tsx         — Service list per category with Add/Qty buttons
       CartScreen.tsx             — Cart management + price breakdown
       BookingScreen.tsx          — 4-step booking: Date → Time → Stylist → Confirm
