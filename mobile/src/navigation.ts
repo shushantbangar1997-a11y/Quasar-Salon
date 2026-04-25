@@ -19,6 +19,7 @@ export type RootStackParamList = {
   BookingSuccess: { booking: ConfirmedBooking };
   Login: undefined;
   SignUp: undefined;
+  Admin: undefined;
 };
 
 export type TabParamList = {

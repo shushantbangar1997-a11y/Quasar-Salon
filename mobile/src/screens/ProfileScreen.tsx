@@ -4,6 +4,7 @@ import { signOut } from 'firebase/auth';
 import { auth } from '../firebase';
 import { COLORS, RADIUS } from '../theme';
 import { ProfileScreenProps } from '../navigation';
+import { useAdmin } from '../AdminContext';
 
 const MENU_ITEMS: { icon: string; label: string; screen: 'Bookings' | null; isToggle?: boolean }[] = [
   { icon: '📅', label: 'My Bookings', screen: 'Bookings' },
@@ -15,6 +16,7 @@ const MENU_ITEMS: { icon: string; label: string; screen: 'Bookings' | null; isTo
 
 export default function ProfileScreen({ navigation }: ProfileScreenProps) {
   const [notifications, setNotifications] = useState(true);
+  const { isAdmin, logoutAdmin } = useAdmin();
   const user = auth?.currentUser;
   const isAnon = !user || user.isAnonymous;
 
@@ -114,6 +116,29 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
           ))}
         </View>
 
+        {/* Admin Portal */}
+        <Pressable
+          style={s.adminPortalBtn}
+          onPress={() => navigation.navigate('Admin')}
+        >
+          <Text style={s.adminPortalIcon}>🔐</Text>
+          <View style={s.adminPortalInfo}>
+            <Text style={s.adminPortalTitle}>
+              Admin Portal {isAdmin && <Text style={s.adminBadge}> Active</Text>}
+            </Text>
+            <Text style={s.adminPortalSub}>
+              {isAdmin ? 'Currently in admin mode — tap to open' : 'Staff & booking management'}
+            </Text>
+          </View>
+          <Text style={{ color: COLORS.textMuted, fontSize: 18 }}>›</Text>
+        </Pressable>
+
+        {isAdmin && (
+          <Pressable style={s.adminLogoutBtn} onPress={logoutAdmin}>
+            <Text style={s.adminLogoutText}>Exit Admin Mode</Text>
+          </Pressable>
+        )}
+
         {!isAnon && (
           <Pressable style={s.signOutBtn} onPress={handleSignOut}>
             <Text style={s.signOutText}>Sign Out</Text>
@@ -153,4 +178,12 @@ const s = StyleSheet.create({
   signOutBtn: { marginHorizontal: 20, marginTop: 20, borderWidth: 1.5, borderColor: COLORS.error, borderRadius: RADIUS.lg, padding: 16, alignItems: 'center' },
   signOutText: { color: COLORS.error, fontWeight: '700', fontSize: 15 },
   version: { textAlign: 'center', color: COLORS.textMuted, fontSize: 12, marginTop: 16, marginBottom: 30, letterSpacing: 0.5 },
+  adminPortalBtn: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, marginTop: 20, backgroundColor: '#1A1A2E', borderRadius: RADIUS.lg, padding: 16, gap: 12 },
+  adminPortalIcon: { fontSize: 22 },
+  adminPortalInfo: { flex: 1 },
+  adminPortalTitle: { fontSize: 15, fontWeight: '700', color: '#E8C97A' },
+  adminBadge: { color: '#4CAF50', fontSize: 13 },
+  adminPortalSub: { fontSize: 12, color: '#9090B0', marginTop: 2 },
+  adminLogoutBtn: { marginHorizontal: 20, marginTop: 10, borderWidth: 1.5, borderColor: '#4CAF50', borderRadius: RADIUS.lg, padding: 12, alignItems: 'center' },
+  adminLogoutText: { color: '#4CAF50', fontWeight: '700', fontSize: 14 },
 });
