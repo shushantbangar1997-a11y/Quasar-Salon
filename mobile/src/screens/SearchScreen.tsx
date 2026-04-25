@@ -123,8 +123,17 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
             const cat = catForId(r.catId);
             return (
               <View key={r.service.id} style={s.card}>
-                <View style={s.catIconWrap}>
-                  <Text style={{ fontSize: 22 }}>{r.catIcon}</Text>
+                <View style={s.svcThumbWrap}>
+                  {(() => {
+                    const src = r.service.imageUrl ?? cat.imageUrl;
+                    return (
+                      <Image
+                        source={typeof src === 'string' ? { uri: src } : src}
+                        style={s.svcThumb}
+                        resizeMode="cover"
+                      />
+                    );
+                  })()}
                 </View>
                 <View style={s.cardMid}>
                   <Text style={s.svcName} numberOfLines={2}>{r.service.name}</Text>
@@ -266,14 +275,17 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  catIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: COLORS.primaryDim,
-    alignItems: 'center',
-    justifyContent: 'center',
+  svcThumbWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: RADIUS.md,
+    overflow: 'hidden',
     marginRight: 12,
+    backgroundColor: COLORS.bgElevated,
+  },
+  svcThumb: {
+    width: '100%',
+    height: '100%',
   },
   cardMid: { flex: 1, marginRight: 8 },
   svcName: { fontSize: 14, fontWeight: '700', color: COLORS.text },

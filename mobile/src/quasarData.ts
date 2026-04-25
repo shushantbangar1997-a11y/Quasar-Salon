@@ -6,6 +6,7 @@ export interface QuasarService {
   durationMins: number;
   gender: 'Women' | 'Men' | 'Both';
   note?: string;
+  imageUrl?: string | number;
 }
 
 export interface QuasarCategory {
@@ -38,20 +39,20 @@ export const QUASAR_CATEGORIES: QuasarCategory[] = [
     services: [
       { id: 'hc-1', name: 'Wash & Natural Dry', price: 499, durationMins: 30, gender: 'Women' },
       { id: 'hc-2', name: 'Wash & Blow Dry', price: 649, durationMins: 45, gender: 'Women' },
-      { id: 'hc-3', name: 'Hair Styling (Without Wash)', price: 249, durationMins: 20, gender: 'Men' },
-      { id: 'hc-4', name: 'Hair Styling (With Wash)', price: 349, durationMins: 30, gender: 'Men' },
-      { id: 'hc-5', name: 'Hair Wash & Blow Dry (Premium)', price: 549, durationMins: 45, gender: 'Men', note: 'Cotril/Fiber Clinix/Blue Shampoo' },
+      { id: 'hc-3', name: 'Hair Styling (Without Wash)', price: 249, durationMins: 20, gender: 'Men', imageUrl: require('../assets/services/hair-care-men.png') },
+      { id: 'hc-4', name: 'Hair Styling (With Wash)', price: 349, durationMins: 30, gender: 'Men', imageUrl: require('../assets/services/hair-care-men.png') },
+      { id: 'hc-5', name: 'Hair Wash & Blow Dry (Premium)', price: 549, durationMins: 45, gender: 'Men', note: 'Cotril/Fiber Clinix/Blue Shampoo', imageUrl: require('../assets/services/hair-care-men.png') },
       { id: 'hc-6', name: 'Hair Wash & Blow Dry (Nashi)', price: 999, durationMins: 50, gender: 'Women' },
-      { id: 'hc-7', name: 'Hair Wash & Blow Dry (Nashi)', price: 599, durationMins: 45, gender: 'Men' },
-      { id: 'hc-8', name: 'Men Hair Cut', price: 599, durationMins: 30, gender: 'Men' },
-      { id: 'hc-9', name: 'Beard Cut / Shave', price: 399, durationMins: 20, gender: 'Men' },
-      { id: 'hc-10', name: 'Beard Color', price: 999, durationMins: 30, gender: 'Men' },
-      { id: 'hc-11', name: 'Bigen Beard Color', price: 1199, durationMins: 40, gender: 'Men' },
-      { id: 'hc-12', name: 'Moustache', price: 499, durationMins: 20, gender: 'Men' },
+      { id: 'hc-7', name: 'Hair Wash & Blow Dry (Nashi)', price: 599, durationMins: 45, gender: 'Men', imageUrl: require('../assets/services/hair-care-men.png') },
+      { id: 'hc-8', name: 'Men Hair Cut', price: 599, durationMins: 30, gender: 'Men', imageUrl: require('../assets/services/hair-care-men.png') },
+      { id: 'hc-9', name: 'Beard Cut / Shave', price: 399, durationMins: 20, gender: 'Men', imageUrl: require('../assets/services/hair-care-men.png') },
+      { id: 'hc-10', name: 'Beard Color', price: 999, durationMins: 30, gender: 'Men', imageUrl: require('../assets/services/hair-care-men.png') },
+      { id: 'hc-11', name: 'Bigen Beard Color', price: 1199, durationMins: 40, gender: 'Men', imageUrl: require('../assets/services/hair-care-men.png') },
+      { id: 'hc-12', name: 'Moustache', price: 499, durationMins: 20, gender: 'Men', imageUrl: require('../assets/services/hair-care-men.png') },
       { id: 'hc-13', name: 'Female Hair Cut', price: 999, durationMins: 45, gender: 'Women', note: 'Onwards' },
       { id: 'hc-14', name: 'Female Hair Trim', price: 849, durationMins: 30, gender: 'Women' },
       { id: 'hc-15', name: 'Creative Hair Cut (Sr. Stylist)', price: 1499, durationMins: 60, gender: 'Women', note: 'Onwards' },
-      { id: 'hc-16', name: 'Boy Hair Cut (Below 5 Years)', price: 449, durationMins: 20, gender: 'Men' },
+      { id: 'hc-16', name: 'Boy Hair Cut (Below 5 Years)', price: 449, durationMins: 20, gender: 'Men', imageUrl: require('../assets/services/hair-care-men.png') },
       { id: 'hc-17', name: 'Girl Hair Cut (Below 5 Years)', price: 599, durationMins: 20, gender: 'Women' },
       { id: 'hc-18', name: 'Curls Without Wash', price: 999, durationMins: 40, gender: 'Women' },
       { id: 'hc-19', name: 'Curls With Wash', price: 1199, durationMins: 50, gender: 'Women' },
@@ -70,9 +71,9 @@ export const QUASAR_CATEGORIES: QuasarCategory[] = [
     services: [
       { id: 'tr-1', name: 'Base Shade Global Color', price: 4499, durationMins: 120, gender: 'Women' },
       { id: 'tr-2', name: 'Fashion Global Color', price: 5999, durationMins: 120, gender: 'Women', note: 'Onwards' },
-      { id: 'tr-3', name: 'Fashion Global Color', price: 2499, durationMins: 90, gender: 'Men', note: 'Onwards' },
+      { id: 'tr-3', name: 'Fashion Global Color', price: 2499, durationMins: 90, gender: 'Men', note: 'Onwards', imageUrl: require('../assets/services/transformation-men.png') },
       { id: 'tr-4', name: 'Highlights', price: 5999, durationMins: 150, gender: 'Women', note: 'Onwards' },
-      { id: 'tr-5', name: 'Highlights', price: 3499, durationMins: 120, gender: 'Men', note: 'Onwards' },
+      { id: 'tr-5', name: 'Highlights', price: 3499, durationMins: 120, gender: 'Men', note: 'Onwards', imageUrl: require('../assets/services/transformation-men.png') },
       { id: 'tr-6', name: 'Baby Highlights (Babylights)', price: 6999, durationMins: 180, gender: 'Women', note: 'Onwards' },
       { id: 'tr-7', name: 'Low Highlights', price: 7999, durationMins: 180, gender: 'Women', note: 'Onwards' },
       { id: 'tr-8', name: 'Balayage', price: 6999, durationMins: 180, gender: 'Women', note: 'Onwards' },

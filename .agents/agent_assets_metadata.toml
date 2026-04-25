@@ -90,3 +90,15 @@ id = "onxAl3w__jgVF4dSqeCe6"
 uri = "file://mobile/assets/services/bridal.png"
 type = "image"
 title = "generated_image"
+
+[[generated]]
+id = "ahAqmaxbPmTnJZbd19HRq"
+uri = "file://mobile/assets/services/hair-care-men.png"
+type = "image"
+title = "men barber haircut salon"
+
+[[generated]]
+id = "vN6glgTImaUx08bwu5Kt7"
+uri = "file://mobile/assets/services/transformation-men.png"
+type = "image"
+title = "men hair color transformation salon"
