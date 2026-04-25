@@ -3,7 +3,7 @@
     "name": "Quasar Salon",
     "slug": "quasar-salon",
     "version": "1.0.0",
-    "sdkVersion": "51.0.0",
+    "sdkVersion": "54.0.0",
     "platforms": [
       "ios",
       "android",
