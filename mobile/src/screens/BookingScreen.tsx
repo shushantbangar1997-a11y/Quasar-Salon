@@ -110,6 +110,11 @@ export default function BookingScreen({ navigation, route }: BookingScreenProps)
 
   /** Confirm booking — use API when available, local state only when API is not configured */
   const handleConfirm = async () => {
+    if (items.length === 0) {
+      Alert.alert('No Services', 'Your cart is empty. Please add services before booking.');
+      return;
+    }
+
     setLoading(true);
 
     if (apiAvailable) {
@@ -168,18 +173,44 @@ export default function BookingScreen({ navigation, route }: BookingScreenProps)
     }
 
     // Local-only mode (API not configured) — demo / development fallback
-    await new Promise<void>(r => setTimeout(r, 600));
-    const booking = addBooking({
-      services: items,
-      date: selectedDate.label,
-      time: selectedTime,
-      stylist: selectedStylist,
-      total: totalPrice,
-      status: 'confirmed',
-    });
-    clearCart();
-    setLoading(false);
-    navigation.navigate('BookingSuccess', { booking });
+    try {
+      await new Promise<void>(r => setTimeout(r, 600));
+
+      const serviceSnapshot = items.map(i => ({
+        service: {
+          id: i.service.id,
+          name: i.service.name,
+          price: i.service.price,
+          durationMins: i.service.durationMins,
+          gender: i.service.gender,
+        },
+        category: {
+          id: i.category.id,
+          name: i.category.name,
+          icon: i.category.icon,
+          imageUrl: i.category.imageUrl,
+          services: [],
+        },
+        qty: i.qty,
+      }));
+
+      const booking = addBooking({
+        services: serviceSnapshot,
+        date: selectedDate.label,
+        time: selectedTime,
+        stylist: selectedStylist,
+        total: totalPrice,
+        status: 'confirmed',
+      });
+
+      clearCart();
+      setLoading(false);
+      navigation.navigate('BookingSuccess', { booking });
+    } catch (e: unknown) {
+      setLoading(false);
+      const message = e instanceof Error ? e.message : 'Something went wrong. Please try again.';
+      Alert.alert('Booking Failed', message, [{ text: 'OK' }]);
+    }
   };
 
   const STEPS: { key: Step; label: string; num: number }[] = [
