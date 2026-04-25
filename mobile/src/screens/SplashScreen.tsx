@@ -1,74 +1,72 @@
-import React, { useEffect, useRef } from 'react';
-import { View, Animated, Easing, StyleSheet, Dimensions, StatusBar } from 'react-native';
-import QuasarLogoSvg from '../components/QuasarLogoSvg';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  View, Pressable, Text, StyleSheet, StatusBar, Animated, Easing, Dimensions,
+} from 'react-native';
+import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
 
-const { width: SCREEN_W } = Dimensions.get('window');
-const LOGO_W = Math.min(SCREEN_W * 0.55, 200);
-const LOGO_H = LOGO_W * (290 / 220);
+const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
 interface SplashScreenProps {
   onFinish: () => void;
 }
 
 export default function SplashScreen({ onFinish }: SplashScreenProps) {
-  const fillHeight = useRef(new Animated.Value(0)).current;
+  const [muted, setMuted] = useState(true);
+  const [videoReady, setVideoReady] = useState(false);
+  const [videoError, setVideoError] = useState(false);
   const fadeOut = useRef(new Animated.Value(1)).current;
+  const videoRef = useRef<Video>(null);
+  const didFinish = useRef(false);
+
+  const finish = () => {
+    if (didFinish.current) return;
+    didFinish.current = true;
+    Animated.timing(fadeOut, {
+      toValue: 0,
+      duration: 500,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: false,
+    }).start(() => onFinish());
+  };
 
   useEffect(() => {
-    Animated.sequence([
-      Animated.delay(300),
-      Animated.timing(fillHeight, {
-        toValue: LOGO_H,
-        duration: 1800,
-        easing: Easing.bezier(0.4, 0.0, 0.2, 1.0),
-        useNativeDriver: false,
-      }),
-      Animated.delay(400),
-      Animated.timing(fadeOut, {
-        toValue: 0,
-        duration: 500,
-        easing: Easing.out(Easing.ease),
-        useNativeDriver: false,
-      }),
-    ]).start(() => {
-      onFinish();
-    });
+    const timeout = setTimeout(() => finish(), 20000);
+    return () => clearTimeout(timeout);
   }, []);
+
+  const handlePlaybackStatus = (status: AVPlaybackStatus) => {
+    if (!status.isLoaded) return;
+    if (status.didJustFinish) finish();
+  };
 
   return (
     <Animated.View style={[s.container, { opacity: fadeOut }]}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-      {/* Muted outline layer — always visible */}
-      <View style={s.logoWrapper}>
-        <View style={{ position: 'absolute', top: 0, left: 0 }}>
-          <QuasarLogoSvg
-            width={LOGO_W}
-            height={LOGO_H}
-            color="#E8DDD4"
-            showText={true}
-          />
-        </View>
+      <StatusBar hidden />
 
-        {/* Gold fill layer — clips from bottom upward */}
-        <Animated.View
-          style={[
-            s.fillClip,
-            {
-              width: LOGO_W,
-              height: fillHeight,
-            },
-          ]}
-        >
-          <View style={{ position: 'absolute', bottom: 0, left: 0 }}>
-            <QuasarLogoSvg
-              width={LOGO_W}
-              height={LOGO_H}
-              color="#C9A84C"
-              showText={true}
-            />
-          </View>
-        </Animated.View>
-      </View>
+      <Video
+        ref={videoRef}
+        source={require('../../assets/quasar_intro.mp4')}
+        style={s.video}
+        shouldPlay
+        isMuted={muted}
+        isLooping={false}
+        resizeMode={ResizeMode.COVER}
+        onPlaybackStatusUpdate={handlePlaybackStatus}
+        onReadyForDisplay={() => setVideoReady(true)}
+        onError={() => { setVideoError(true); finish(); }}
+      />
+
+      {videoReady && (
+        <>
+          <Pressable style={s.muteBtn} onPress={() => setMuted(v => !v)}>
+            <Text style={s.muteBtnText}>{muted ? '🔇' : '🔊'}</Text>
+          </Pressable>
+
+          <Pressable style={s.skipBtn} onPress={finish}>
+            <Text style={s.skipText}>Skip  ›</Text>
+          </Pressable>
+        </>
+      )}
     </Animated.View>
   );
 }
@@ -76,19 +74,43 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
 const s = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#000',
+    width: SCREEN_W,
+    height: SCREEN_H,
+  },
+  video: {
+    position: 'absolute',
+    top: 0, left: 0,
+    width: SCREEN_W,
+    height: SCREEN_H,
+  },
+  muteBtn: {
+    position: 'absolute',
+    bottom: 80,
+    left: 24,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    borderRadius: 24,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  logoWrapper: {
-    width: LOGO_W,
-    height: LOGO_H,
-    position: 'relative',
+  muteBtnText: {
+    fontSize: 20,
   },
-  fillClip: {
+  skipBtn: {
     position: 'absolute',
-    bottom: 0,
-    left: 0,
-    overflow: 'hidden',
+    bottom: 72,
+    right: 24,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    borderRadius: 20,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+  },
+  skipText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
 });
