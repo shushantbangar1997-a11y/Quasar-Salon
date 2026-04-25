@@ -38,3 +38,14 @@ externalPort = 80
 deploymentTarget = "static"
 build = ["sh", "-c", "cd mobile && npx expo export --platform web --output-dir dist"]
 publicDir = "mobile/dist"
+
+[userenv]
+
+[userenv.shared]
+EXPO_PUBLIC_FIREBASE_API_KEY = "AIzaSyA0NYDMWhuxDiFkbncYd3K-3n-a7129rW0"
+EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN = "quasar-salon.firebaseapp.com"
+EXPO_PUBLIC_FIREBASE_PROJECT_ID = "quasar-salon"
+EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET = "quasar-salon.firebasestorage.app"
+EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID = "970869144881"
+EXPO_PUBLIC_FIREBASE_APP_ID = "1:970869144881:web:9d51e608656c3e574c8410"
+EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID = "G-14Y4X76C8X"
