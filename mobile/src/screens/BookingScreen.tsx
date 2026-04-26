@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, ScrollView, Pressable, StyleSheet,
-  SafeAreaView, StatusBar, ActivityIndicator,
+  SafeAreaView, StatusBar, ActivityIndicator, Image,
 } from 'react-native';
 import { useCart } from '../CartContext';
 import { useBookings } from '../BookingsContext';
@@ -291,7 +291,11 @@ export default function BookingScreen({ navigation, route }: BookingScreenProps)
                   style={[s.stylistCard, active && s.stylistCardActive, isBusy && s.stylistCardBusy]}
                 >
                   <View style={[s.stylistEmoji, active && { backgroundColor: COLORS.primary }]}>
-                    <Text style={{ fontSize: 28 }}>{staff.emoji}</Text>
+                    {staff.photoUri ? (
+                      <Image source={{ uri: staff.photoUri }} style={s.stylistPhoto} />
+                    ) : (
+                      <Text style={{ fontSize: 28 }}>{staff.emoji}</Text>
+                    )}
                   </View>
                   <View style={{ flex: 1, marginLeft: 14 }}>
                     <Text style={[s.stylistName, isBusy && s.textDim]}>{staff.name}</Text>
@@ -438,7 +442,8 @@ const s = StyleSheet.create({
   stylistCard: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: COLORS.bgCard, borderRadius: RADIUS.lg, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: COLORS.border },
   stylistCardActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primaryDim },
   stylistCardBusy: { opacity: 0.45 },
-  stylistEmoji: { width: 56, height: 56, borderRadius: 28, backgroundColor: COLORS.bgElevated, alignItems: 'center', justifyContent: 'center' },
+  stylistEmoji: { width: 56, height: 56, borderRadius: 28, backgroundColor: COLORS.bgElevated, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  stylistPhoto: { width: 56, height: 56, borderRadius: 28 },
   stylistName: { fontSize: 16, fontWeight: '700', color: COLORS.text },
   stylistRole: { fontSize: 13, color: COLORS.primary, marginTop: 2 },
   stylistExp: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },

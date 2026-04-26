@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import {
   View, Text, ScrollView, Pressable, StyleSheet,
-  SafeAreaView, StatusBar, TextInput, ActivityIndicator, Switch, Image,
+  SafeAreaView, StatusBar, TextInput, ActivityIndicator, Switch, Image, Platform,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { useAdmin } from '../AdminContext';
 import { useBookings, ConfirmedBooking } from '../BookingsContext';
 import { useStaff } from '../StaffContext';
@@ -110,10 +111,70 @@ export default function AdminScreen({ navigation }: Props) {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-  const { staffList, toggleAvailability, addStaff } = useStaff();
+  const { staffList, toggleAvailability, addStaff, updateStaff } = useStaff();
   const [showAddForm, setShowAddForm] = useState(false);
   const [form, setForm] = useState({ ...BLANK_FORM });
   const [formError, setFormError] = useState('');
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<Partial<StaffMember> & { name: string; role: string; experience: string; emoji: string; specialties: string[] }>({
+    name: '', role: '', experience: '', emoji: '✂️', specialties: [],
+  });
+
+  const startEdit = (staff: StaffMember) => {
+    setEditingId(staff.id);
+    setEditForm({
+      name: staff.name,
+      role: staff.role,
+      experience: staff.experience,
+      emoji: staff.emoji,
+      specialties: [...staff.specialties],
+      photoUri: staff.photoUri,
+    });
+  };
+
+  const cancelEdit = () => { setEditingId(null); };
+
+  const saveEdit = () => {
+    if (!editForm.name.trim() || !editForm.role.trim()) return;
+    updateStaff(editingId!, {
+      name: editForm.name.trim(),
+      role: editForm.role.trim(),
+      experience: editForm.experience.trim() || 'New hire',
+      emoji: editForm.emoji,
+      specialties: editForm.specialties,
+      photoUri: editForm.photoUri,
+    });
+    setEditingId(null);
+  };
+
+  const pickPhoto = async (forEdit: boolean) => {
+    if (Platform.OS !== 'web') {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: 'images',
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+    if (!result.canceled && result.assets.length > 0) {
+      const uri = result.assets[0].uri;
+      if (forEdit) {
+        setEditForm(f => ({ ...f, photoUri: uri }));
+      }
+    }
+  };
+
+  const toggleEditSpecialty = (sp: string) => {
+    setEditForm(f => ({
+      ...f,
+      specialties: f.specialties.includes(sp)
+        ? f.specialties.filter(x => x !== sp)
+        : [...f.specialties, sp],
+    }));
+  };
 
   if (!isAdmin) {
     return (
@@ -410,50 +471,163 @@ export default function AdminScreen({ navigation }: Props) {
                 <Text style={s.emptyText}>No staff members yet</Text>
               </View>
             ) : (
-              staffList.map(staff => (
-                <View key={staff.id} style={s.staffCard}>
-                  <View style={s.staffTop}>
-                    <View style={s.staffAvatar}>
-                      <Text style={{ fontSize: 26 }}>{staff.emoji}</Text>
-                    </View>
-                    <View style={s.staffInfo}>
-                      <Text style={s.staffName}>{staff.name}</Text>
-                      <Text style={s.staffRole}>{staff.role} · {staff.experience}</Text>
-                      <View style={s.specialtyRow}>
-                        {staff.specialties.map(sp => (
-                          <View key={sp} style={s.specialtyTag}>
-                            <Text style={s.specialtyText}>{sp}</Text>
+              staffList.map(staff => {
+                const isEditing = editingId === staff.id;
+                return (
+                  <View key={staff.id} style={[s.staffCard, isEditing && s.staffCardEditing]}>
+                    {/* Card header — always visible */}
+                    <View style={s.staffTop}>
+                      <Pressable
+                        style={s.staffAvatar}
+                        onPress={isEditing ? () => pickPhoto(true) : undefined}
+                      >
+                        {isEditing && editForm.photoUri ? (
+                          <Image source={{ uri: editForm.photoUri }} style={s.staffAvatarImg} />
+                        ) : !isEditing && staff.photoUri ? (
+                          <Image source={{ uri: staff.photoUri }} style={s.staffAvatarImg} />
+                        ) : (
+                          <Text style={{ fontSize: 26 }}>{isEditing ? editForm.emoji || staff.emoji : staff.emoji}</Text>
+                        )}
+                        {isEditing && (
+                          <View style={s.photoEditBadge}>
+                            <Text style={s.photoEditBadgeText}>📷</Text>
                           </View>
-                        ))}
+                        )}
+                      </Pressable>
+
+                      <View style={s.staffInfo}>
+                        <Text style={s.staffName}>{staff.name}</Text>
+                        <Text style={s.staffRole}>{staff.role} · {staff.experience}</Text>
+                        <View style={s.specialtyRow}>
+                          {staff.specialties.slice(0, 3).map(sp => (
+                            <View key={sp} style={s.specialtyTag}>
+                              <Text style={s.specialtyText}>{sp}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      </View>
+
+                      <View style={s.staffActions}>
+                        <Text style={[s.availLabel, { color: staff.available ? COLORS.success : COLORS.textMuted }]}>
+                          {staff.available ? 'Present' : 'Absent'}
+                        </Text>
+                        <Switch
+                          value={staff.available}
+                          onValueChange={() => toggleAvailability(staff.id)}
+                          trackColor={{ false: COLORS.border, true: COLORS.primary }}
+                          thumbColor="#FFFFFF"
+                        />
+                        <Pressable
+                          style={[s.editBtn, isEditing && s.editBtnActive]}
+                          onPress={() => isEditing ? cancelEdit() : startEdit(staff)}
+                        >
+                          <Text style={[s.editBtnText, isEditing && s.editBtnTextActive]}>
+                            {isEditing ? 'Cancel' : 'Edit'}
+                          </Text>
+                        </Pressable>
                       </View>
                     </View>
-                    <View style={s.staffActions}>
-                      <Text style={[s.availLabel, { color: staff.available ? COLORS.success : COLORS.textMuted }]}>
-                        {staff.available ? 'Present' : 'Absent'}
-                      </Text>
-                      <Switch
-                        value={staff.available}
-                        onValueChange={() => toggleAvailability(staff.id)}
-                        trackColor={{ false: COLORS.border, true: COLORS.primary }}
-                        thumbColor="#FFFFFF"
-                      />
-                    </View>
-                  </View>
 
-                  {Object.keys(staff.schedule).length > 0 && (
-                    <View style={s.schedule}>
-                      {Object.entries(staff.schedule).map(([day, hours]) =>
-                        hours ? (
-                          <View key={day} style={s.scheduleRow}>
-                            <Text style={s.scheduleDay}>{day.charAt(0).toUpperCase() + day.slice(1, 3)}</Text>
-                            <Text style={s.scheduleHours}>{hours.start} – {hours.end}</Text>
+                    {/* Inline edit form */}
+                    {isEditing && (
+                      <View style={s.editPanel}>
+                        {/* Photo picker row */}
+                        <Pressable style={s.photoPickerBtn} onPress={() => pickPhoto(true)}>
+                          {editForm.photoUri ? (
+                            <Image source={{ uri: editForm.photoUri }} style={s.photoPickerThumb} />
+                          ) : (
+                            <View style={s.photoPickerPlaceholder}>
+                              <Text style={{ fontSize: 28 }}>{editForm.emoji}</Text>
+                            </View>
+                          )}
+                          <View style={{ flex: 1 }}>
+                            <Text style={s.photoPickerLabel}>Profile Photo</Text>
+                            <Text style={s.photoPickerSub}>Tap to {editForm.photoUri ? 'change' : 'upload'} photo</Text>
                           </View>
-                        ) : null
-                      )}
-                    </View>
-                  )}
-                </View>
-              ))
+                          <Text style={s.photoPickerArrow}>📷</Text>
+                        </Pressable>
+
+                        <Text style={s.fieldLabel}>Full Name</Text>
+                        <TextInput
+                          style={s.fieldInput}
+                          value={editForm.name}
+                          onChangeText={v => setEditForm(f => ({ ...f, name: v }))}
+                          placeholder="e.g. Priya Sharma"
+                          placeholderTextColor={COLORS.textMuted}
+                        />
+
+                        <Text style={s.fieldLabel}>Role / Title</Text>
+                        <TextInput
+                          style={s.fieldInput}
+                          value={editForm.role}
+                          onChangeText={v => setEditForm(f => ({ ...f, role: v }))}
+                          placeholder="e.g. Senior Hair Stylist"
+                          placeholderTextColor={COLORS.textMuted}
+                        />
+
+                        <Text style={s.fieldLabel}>Experience</Text>
+                        <TextInput
+                          style={s.fieldInput}
+                          value={editForm.experience}
+                          onChangeText={v => setEditForm(f => ({ ...f, experience: v }))}
+                          placeholder="e.g. 5 years"
+                          placeholderTextColor={COLORS.textMuted}
+                        />
+
+                        <Text style={s.fieldLabel}>Emoji Avatar</Text>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
+                          <View style={s.emojiRow}>
+                            {EMOJI_OPTIONS.map(em => (
+                              <Pressable
+                                key={em}
+                                style={[s.emojiPill, editForm.emoji === em && s.emojiPillActive]}
+                                onPress={() => setEditForm(f => ({ ...f, emoji: em }))}
+                              >
+                                <Text style={s.emojiText}>{em}</Text>
+                              </Pressable>
+                            ))}
+                          </View>
+                        </ScrollView>
+
+                        <Text style={s.fieldLabel}>Specialties</Text>
+                        <View style={s.specialtyPicker}>
+                          {SPECIALTY_OPTIONS.map(sp => (
+                            <Pressable
+                              key={sp}
+                              style={[s.spTag, editForm.specialties.includes(sp) && s.spTagActive]}
+                              onPress={() => toggleEditSpecialty(sp)}
+                            >
+                              <Text style={[s.spTagText, editForm.specialties.includes(sp) && s.spTagTextActive]}>{sp}</Text>
+                            </Pressable>
+                          ))}
+                        </View>
+
+                        <View style={s.editActions}>
+                          <Pressable style={s.editCancelBtn} onPress={cancelEdit}>
+                            <Text style={s.editCancelText}>Cancel</Text>
+                          </Pressable>
+                          <Pressable style={s.editSaveBtn} onPress={saveEdit}>
+                            <Text style={s.editSaveText}>Save Changes</Text>
+                          </Pressable>
+                        </View>
+                      </View>
+                    )}
+
+                    {!isEditing && Object.keys(staff.schedule).length > 0 && (
+                      <View style={s.schedule}>
+                        {Object.entries(staff.schedule).map(([day, hours]) =>
+                          hours ? (
+                            <View key={day} style={s.scheduleRow}>
+                              <Text style={s.scheduleDay}>{day.charAt(0).toUpperCase() + day.slice(1, 3)}</Text>
+                              <Text style={s.scheduleHours}>{hours.start} – {hours.end}</Text>
+                            </View>
+                          ) : null
+                        )}
+                      </View>
+                    )}
+                  </View>
+                );
+              })
             )}
           </View>
         )}
@@ -563,8 +737,12 @@ const s = StyleSheet.create({
     backgroundColor: COLORS.bgCard, borderRadius: RADIUS.lg,
     padding: 16, marginBottom: 12, borderWidth: 1, borderColor: COLORS.border, ...SHADOW.card,
   },
+  staffCardEditing: { borderColor: COLORS.primary, borderWidth: 1.5 },
   staffTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 6 },
-  staffAvatar: { width: 52, height: 52, borderRadius: 26, backgroundColor: COLORS.primaryDim, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: COLORS.primary },
+  staffAvatar: { width: 52, height: 52, borderRadius: 26, backgroundColor: COLORS.primaryDim, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: COLORS.primary, overflow: 'hidden' },
+  staffAvatarImg: { width: 52, height: 52, borderRadius: 26 },
+  photoEditBadge: { position: 'absolute', bottom: 0, right: 0, width: 18, height: 18, borderRadius: 9, backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center' },
+  photoEditBadgeText: { fontSize: 9 },
   staffInfo: { flex: 1 },
   staffName: { fontSize: 16, fontWeight: '700', color: COLORS.text },
   staffRole: { fontSize: 13, color: COLORS.textSecondary, marginTop: 2 },
@@ -573,10 +751,32 @@ const s = StyleSheet.create({
   specialtyText: { fontSize: 11, color: COLORS.textSecondary },
   staffActions: { alignItems: 'flex-end', gap: 6 },
   availLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 0.4 },
+  editBtn: { borderWidth: 1, borderColor: COLORS.border, borderRadius: RADIUS.sm, paddingHorizontal: 10, paddingVertical: 4, marginTop: 2 },
+  editBtnActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primaryDim },
+  editBtnText: { fontSize: 12, fontWeight: '600', color: COLORS.textMuted },
+  editBtnTextActive: { color: COLORS.primary },
   schedule: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4, paddingTop: 10, borderTopWidth: 1, borderTopColor: COLORS.borderLight },
   scheduleRow: { flexDirection: 'row', gap: 6 },
   scheduleDay: { fontSize: 12, fontWeight: '700', color: COLORS.textMuted, width: 28 },
   scheduleHours: { fontSize: 12, color: COLORS.textSecondary },
+
+  editPanel: { marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: COLORS.border },
+  photoPickerBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    backgroundColor: COLORS.bg, borderRadius: RADIUS.md,
+    borderWidth: 1.5, borderColor: COLORS.primary, borderStyle: 'dashed',
+    padding: 14, marginBottom: 16,
+  },
+  photoPickerThumb: { width: 56, height: 56, borderRadius: 28 },
+  photoPickerPlaceholder: { width: 56, height: 56, borderRadius: 28, backgroundColor: COLORS.primaryDim, alignItems: 'center', justifyContent: 'center' },
+  photoPickerLabel: { fontSize: 14, fontWeight: '700', color: COLORS.text },
+  photoPickerSub: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
+  photoPickerArrow: { fontSize: 20 },
+  editActions: { flexDirection: 'row', gap: 10, marginTop: 6 },
+  editCancelBtn: { flex: 1, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: RADIUS.md, paddingVertical: 11, alignItems: 'center' },
+  editCancelText: { fontSize: 14, fontWeight: '600', color: COLORS.textMuted },
+  editSaveBtn: { flex: 2, backgroundColor: COLORS.primary, borderRadius: RADIUS.md, paddingVertical: 11, alignItems: 'center' },
+  editSaveText: { fontSize: 14, fontWeight: '800', color: COLORS.bg },
 
   loginWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
   loginCard: {

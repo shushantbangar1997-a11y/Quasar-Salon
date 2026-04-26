@@ -5,12 +5,14 @@ interface StaffContextValue {
   staffList: StaffMember[];
   toggleAvailability: (id: string) => void;
   addStaff: (member: StaffMember) => void;
+  updateStaff: (id: string, updates: Partial<StaffMember>) => void;
 }
 
 const StaffContext = createContext<StaffContextValue>({
   staffList: QUASAR_STAFF,
   toggleAvailability: () => {},
   addStaff: () => {},
+  updateStaff: () => {},
 });
 
 export function StaffProvider({ children }: { children: React.ReactNode }) {
@@ -26,8 +28,14 @@ export function StaffProvider({ children }: { children: React.ReactNode }) {
     setStaffList(prev => [...prev, member]);
   };
 
+  const updateStaff = (id: string, updates: Partial<StaffMember>) => {
+    setStaffList(prev =>
+      prev.map(st => st.id === id ? { ...st, ...updates } : st)
+    );
+  };
+
   return (
-    <StaffContext.Provider value={{ staffList, toggleAvailability, addStaff }}>
+    <StaffContext.Provider value={{ staffList, toggleAvailability, addStaff, updateStaff }}>
       {children}
     </StaffContext.Provider>
   );

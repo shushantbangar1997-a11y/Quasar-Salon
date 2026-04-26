@@ -25,6 +25,7 @@ export interface StaffMember {
   specialties: string[];
   experience: string;
   available: boolean;
+  photoUri?: string;
   schedule: {
     [day: string]: { start: string; end: string } | null;
   };
