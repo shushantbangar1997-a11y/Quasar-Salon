@@ -7,6 +7,7 @@ import { auth } from './src/firebase';
 import { CartProvider } from './src/CartContext';
 import { BookingsProvider } from './src/BookingsContext';
 import { AdminProvider } from './src/AdminContext';
+import { StaffProvider } from './src/StaffContext';
 import { RootStackParamList, TabParamList } from './src/navigation';
 import FloatingTabBar from './src/components/FloatingTabBar';
 
@@ -56,6 +57,7 @@ export default function App() {
 
   return (
     <AdminProvider>
+    <StaffProvider>
     <BookingsProvider>
     <CartProvider>
       <NavigationContainer>
@@ -72,6 +74,7 @@ export default function App() {
       </NavigationContainer>
     </CartProvider>
     </BookingsProvider>
+    </StaffProvider>
     </AdminProvider>
   );
 }

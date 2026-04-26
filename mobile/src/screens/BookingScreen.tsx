@@ -5,13 +5,13 @@ import {
 } from 'react-native';
 import { useCart } from '../CartContext';
 import { useBookings } from '../BookingsContext';
-import { QUASAR_STAFF, DEMO_BUSY_SLOTS, StaffMember } from '../quasarData';
+import { useStaff } from '../StaffContext';
+import { DEMO_BUSY_SLOTS, StaffMember } from '../quasarData';
 import { COLORS, RADIUS } from '../theme';
 import { BookingScreenProps } from '../navigation';
 import {
   API_BASE_URL,
   ApiError,
-  fetchAllStaff,
   fetchStaffSlots,
   createQuasarBooking,
   buildQuasarBookingPayload,
@@ -45,23 +45,13 @@ export default function BookingScreen({ navigation, route }: BookingScreenProps)
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const [staffList, setStaffList] = useState<StaffMember[]>(QUASAR_STAFF);
-  const [staffLoading, setStaffLoading] = useState(false);
+  const { staffList } = useStaff();
+  const [staffLoading] = useState(false);
   const [slotMap, setSlotMap] = useState<Record<string, string[]>>({});
   const [slotsLoading, setSlotsLoading] = useState(false);
 
   const apiAvailable = Boolean(API_BASE_URL);
   const totalDuration = items.reduce((sum, item) => sum + item.service.durationMins * item.qty, 0);
-
-  /** Load staff list from API on mount (if available) */
-  useEffect(() => {
-    if (!apiAvailable) return;
-    setStaffLoading(true);
-    fetchAllStaff()
-      .then(data => setStaffList(data.length > 0 ? data : QUASAR_STAFF))
-      .catch(() => setStaffList(QUASAR_STAFF))
-      .finally(() => setStaffLoading(false));
-  }, [apiAvailable]);
 
   /** Fetch slots for ALL staff when advancing to time step, honoring total service duration */
   const fetchSlotsForDate = useCallback(async (dateIso: string) => {

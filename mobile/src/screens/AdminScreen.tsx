@@ -5,7 +5,8 @@ import {
 } from 'react-native';
 import { useAdmin } from '../AdminContext';
 import { useBookings, ConfirmedBooking } from '../BookingsContext';
-import { QUASAR_STAFF, StaffMember } from '../quasarData';
+import { useStaff } from '../StaffContext';
+import { StaffMember } from '../quasarData';
 import { COLORS, RADIUS, SHADOW } from '../theme';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation';
@@ -109,7 +110,7 @@ export default function AdminScreen({ navigation }: Props) {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-  const [staffList, setStaffList] = useState<StaffMember[]>([...QUASAR_STAFF]);
+  const { staffList, toggleAvailability, addStaff } = useStaff();
   const [showAddForm, setShowAddForm] = useState(false);
   const [form, setForm] = useState({ ...BLANK_FORM });
   const [formError, setFormError] = useState('');
@@ -143,14 +144,6 @@ export default function AdminScreen({ navigation }: Props) {
     }
   };
 
-  const toggleAvailability = (id: string) => {
-    setStaffList(prev => prev.map(st => st.id === id ? { ...st, available: !st.available } : st));
-  };
-
-  const removeStaff = (id: string) => {
-    setStaffList(prev => prev.filter(st => st.id !== id));
-  };
-
   const toggleSpecialty = (sp: string) => {
     setForm(f => ({
       ...f,
@@ -176,7 +169,7 @@ export default function AdminScreen({ navigation }: Props) {
       schedule: {},
     };
 
-    setStaffList(prev => [...prev, newMember]);
+    addStaff(newMember);
     setForm({ ...BLANK_FORM });
     setFormError('');
     setShowAddForm(false);
@@ -223,7 +216,7 @@ export default function AdminScreen({ navigation }: Props) {
               onPress={() => setTab(t)}
             >
               <Text style={[s.tabText, tab === t && s.tabTextActive]}>
-                {t === 'bookings' ? `📅 Bookings (${allBookings.length})` : `👤 Staff (${staffList.length})`}
+                {t === 'bookings' ? `📅 Bookings (${allBookings.length})` : `👥 Team Quasar (${staffList.length})`}
               </Text>
             </Pressable>
           ))}
@@ -435,17 +428,15 @@ export default function AdminScreen({ navigation }: Props) {
                       </View>
                     </View>
                     <View style={s.staffActions}>
-                      <Pressable
-                        style={[s.availBadge, { backgroundColor: staff.available ? COLORS.successBg : COLORS.errorBg }]}
-                        onPress={() => toggleAvailability(staff.id)}
-                      >
-                        <Text style={[s.availText, { color: staff.available ? COLORS.success : COLORS.error }]}>
-                          {staff.available ? 'Active' : 'Off'}
-                        </Text>
-                      </Pressable>
-                      <Pressable style={s.removeBtn} onPress={() => removeStaff(staff.id)}>
-                        <Text style={s.removeBtnText}>✕</Text>
-                      </Pressable>
+                      <Text style={[s.availLabel, { color: staff.available ? COLORS.success : COLORS.textMuted }]}>
+                        {staff.available ? 'Present' : 'Absent'}
+                      </Text>
+                      <Switch
+                        value={staff.available}
+                        onValueChange={() => toggleAvailability(staff.id)}
+                        trackColor={{ false: COLORS.border, true: COLORS.primary }}
+                        thumbColor="#FFFFFF"
+                      />
                     </View>
                   </View>
 
@@ -580,11 +571,8 @@ const s = StyleSheet.create({
   specialtyRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 },
   specialtyTag: { backgroundColor: COLORS.bgElevated, borderRadius: RADIUS.sm, paddingHorizontal: 8, paddingVertical: 3 },
   specialtyText: { fontSize: 11, color: COLORS.textSecondary },
-  staffActions: { alignItems: 'flex-end', gap: 8 },
-  availBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: RADIUS.xxl },
-  availText: { fontSize: 12, fontWeight: '700' },
-  removeBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: COLORS.errorBg, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.error },
-  removeBtnText: { color: COLORS.error, fontSize: 12, fontWeight: '800' },
+  staffActions: { alignItems: 'flex-end', gap: 6 },
+  availLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 0.4 },
   schedule: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4, paddingTop: 10, borderTopWidth: 1, borderTopColor: COLORS.borderLight },
   scheduleRow: { flexDirection: 'row', gap: 6 },
   scheduleDay: { fontSize: 12, fontWeight: '700', color: COLORS.textMuted, width: 28 },
