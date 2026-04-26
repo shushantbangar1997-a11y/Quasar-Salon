@@ -12,7 +12,13 @@ import { RootStackParamList } from '../navigation';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'OTP'>;
 const OTP_LENGTH = 6;
-const RESEND_SECONDS = 60;
+const OTP_TTL_SECONDS = 5 * 60; // must match backend 5-minute expiry
+
+function formatCountdown(secs: number): string {
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
 
 export default function OTPScreen({ route, navigation }: Props) {
   const { email } = route.params;
@@ -20,7 +26,7 @@ export default function OTPScreen({ route, navigation }: Props) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
-  const [countdown, setCountdown] = useState(RESEND_SECONDS);
+  const [countdown, setCountdown] = useState(OTP_TTL_SECONDS);
   const inputRef = useRef<TextInput>(null);
 
   useEffect(() => {
@@ -63,7 +69,7 @@ export default function OTPScreen({ route, navigation }: Props) {
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? 'Failed to resend code'); return; }
-      setCountdown(RESEND_SECONDS);
+      setCountdown(OTP_TTL_SECONDS);
     } catch (e) {
       setError('Network error. Please try again.');
     } finally {
@@ -116,9 +122,9 @@ export default function OTPScreen({ route, navigation }: Props) {
           {error ? <Text style={s.error}>{error}</Text> : null}
 
           <Pressable
-            style={[s.verifyBtn, (loading || code.length !== OTP_LENGTH) && { opacity: 0.6 }]}
+            style={[s.verifyBtn, (loading || code.length !== OTP_LENGTH || countdown <= 0) && { opacity: 0.6 }]}
             onPress={handleVerify}
-            disabled={loading || code.length !== OTP_LENGTH}
+            disabled={loading || code.length !== OTP_LENGTH || countdown <= 0}
           >
             {loading
               ? <ActivityIndicator color={COLORS.bg} />
@@ -128,7 +134,7 @@ export default function OTPScreen({ route, navigation }: Props) {
 
           <View style={s.resendRow}>
             {countdown > 0 ? (
-              <Text style={s.countdownText}>Resend code in {countdown}s</Text>
+              <Text style={s.countdownText}>Code expires in {formatCountdown(countdown)}</Text>
             ) : (
               <Pressable onPress={handleResend} disabled={resending}>
                 <Text style={[s.resendText, resending && { opacity: 0.5 }]}>

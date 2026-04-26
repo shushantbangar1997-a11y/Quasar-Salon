@@ -22,6 +22,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [sendingOtp, setSendingOtp] = useState(false);
   const [otpError, setOtpError] = useState('');
+  const [usePassword, setUsePassword] = useState(false);
 
   const [googleLoading, setGoogleLoading] = useState(false);
   const [_googleRequest, googleResponse, promptGoogleAsync] = Google.useAuthRequest({
@@ -63,7 +64,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
   };
 
   const handleOtpSignIn = async () => {
-    if (!email || !email.includes('@')) { setOtpError('Please enter a valid email address above first'); return; }
+    if (!email || !email.includes('@')) { setOtpError('Please enter a valid email address'); return; }
     setOtpError('');
     setSendingOtp(true);
     try {
@@ -101,62 +102,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
             <Text style={s.tagline}>Sign in to save your bookings</Text>
           </View>
 
-          <TextInput
-            style={s.input}
-            placeholder="Email"
-            placeholderTextColor={COLORS.textMuted}
-            value={email}
-            onChangeText={t => { setEmail(t); setError(''); setOtpError(''); }}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
-
-          <View style={s.passwordRow}>
-            <TextInput
-              style={[s.input, { flex: 1, marginBottom: 0 }]}
-              placeholder="Password"
-              placeholderTextColor={COLORS.textMuted}
-              value={password}
-              onChangeText={t => { setPassword(t); setError(''); }}
-              secureTextEntry={!showPassword}
-              autoCapitalize="none"
-            />
-            <Pressable style={s.eyeBtn} onPress={() => setShowPassword(v => !v)}>
-              <Text style={s.eyeText}>{showPassword ? '🙈' : '👁️'}</Text>
-            </Pressable>
-          </View>
-
-          {error ? <Text style={s.errorText}>{error}</Text> : null}
-
-          <Pressable
-            style={[s.primaryBtn, loading && { opacity: 0.7 }]}
-            onPress={handleLogin}
-            disabled={loading}
-          >
-            {loading
-              ? <ActivityIndicator color={COLORS.bg} />
-              : <Text style={s.primaryBtnText}>Sign In</Text>
-            }
-          </Pressable>
-
-          <Pressable
-            style={[s.otpBtn, sendingOtp && { opacity: 0.6 }]}
-            onPress={handleOtpSignIn}
-            disabled={sendingOtp}
-          >
-            {sendingOtp
-              ? <ActivityIndicator color={COLORS.primary} />
-              : <Text style={s.otpBtnText}>✉️  Sign in with Email Code</Text>
-            }
-          </Pressable>
-          {otpError ? <Text style={s.errorText}>{otpError}</Text> : null}
-
-          <View style={s.divider}>
-            <View style={s.dividerLine} />
-            <Text style={s.dividerText}>or</Text>
-            <View style={s.dividerLine} />
-          </View>
-
+          {/* Google Sign-In */}
           <Pressable
             style={[s.googleBtn, (loading || googleLoading) && { opacity: 0.6 }]}
             onPress={() => { setGoogleLoading(true); promptGoogleAsync(); }}
@@ -171,7 +117,85 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
             }
           </Pressable>
 
-          <Pressable style={s.guestBtn} onPress={handleGuest} disabled={loading}>
+          <View style={s.divider}>
+            <View style={s.dividerLine} />
+            <Text style={s.dividerText}>or</Text>
+            <View style={s.dividerLine} />
+          </View>
+
+          {/* Email OTP — primary */}
+          {!usePassword && (
+            <>
+              <TextInput
+                style={s.input}
+                placeholder="Email"
+                placeholderTextColor={COLORS.textMuted}
+                value={email}
+                onChangeText={t => { setEmail(t); setOtpError(''); }}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+              {otpError ? <Text style={s.errorText}>{otpError}</Text> : null}
+              <Pressable
+                style={[s.primaryBtn, sendingOtp && { opacity: 0.6 }]}
+                onPress={handleOtpSignIn}
+                disabled={sendingOtp}
+              >
+                {sendingOtp
+                  ? <ActivityIndicator color={COLORS.bg} />
+                  : <Text style={s.primaryBtnText}>✉️  Sign in with Email Code</Text>
+                }
+              </Pressable>
+              <Pressable style={s.switchLink} onPress={() => setUsePassword(true)}>
+                <Text style={s.switchText}>Use password instead</Text>
+              </Pressable>
+            </>
+          )}
+
+          {/* Password — secondary */}
+          {usePassword && (
+            <>
+              <TextInput
+                style={s.input}
+                placeholder="Email"
+                placeholderTextColor={COLORS.textMuted}
+                value={email}
+                onChangeText={t => { setEmail(t); setError(''); }}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+              <View style={s.passwordRow}>
+                <TextInput
+                  style={[s.input, { flex: 1, marginBottom: 0 }]}
+                  placeholder="Password"
+                  placeholderTextColor={COLORS.textMuted}
+                  value={password}
+                  onChangeText={t => { setPassword(t); setError(''); }}
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                />
+                <Pressable style={s.eyeBtn} onPress={() => setShowPassword(v => !v)}>
+                  <Text style={s.eyeText}>{showPassword ? '🙈' : '👁️'}</Text>
+                </Pressable>
+              </View>
+              {error ? <Text style={s.errorText}>{error}</Text> : null}
+              <Pressable
+                style={[s.primaryBtn, loading && { opacity: 0.7 }]}
+                onPress={handleLogin}
+                disabled={loading}
+              >
+                {loading
+                  ? <ActivityIndicator color={COLORS.bg} />
+                  : <Text style={s.primaryBtnText}>Sign In</Text>
+                }
+              </Pressable>
+              <Pressable style={s.switchLink} onPress={() => setUsePassword(false)}>
+                <Text style={s.switchText}>Use email code instead</Text>
+              </Pressable>
+            </>
+          )}
+
+          <Pressable style={[s.guestBtn, { marginTop: 16 }]} onPress={handleGuest} disabled={loading || googleLoading}>
             <Text style={s.guestBtnText}>Continue as Guest</Text>
           </Pressable>
 
@@ -191,7 +215,7 @@ const s = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: 24, paddingTop: 20 },
   backRow: { alignSelf: 'flex-start', marginBottom: 20 },
   back: { color: COLORS.primary, fontSize: 15, fontWeight: '600' },
-  logoArea: { alignItems: 'center', marginBottom: 32 },
+  logoArea: { alignItems: 'center', marginBottom: 28 },
   logo: { width: 120, height: 120, marginBottom: 12 },
   tagline: { fontSize: 14, color: COLORS.textSecondary },
   input: { height: 54, borderWidth: 1, borderColor: COLORS.border, borderRadius: RADIUS.lg, paddingHorizontal: 16, fontSize: 15, marginBottom: 14, backgroundColor: COLORS.bgCard, color: COLORS.text },
@@ -201,12 +225,12 @@ const s = StyleSheet.create({
   errorText: { color: COLORS.error, fontSize: 13, marginBottom: 8 },
   primaryBtn: { height: 54, backgroundColor: COLORS.primary, borderRadius: RADIUS.lg, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
   primaryBtnText: { color: COLORS.bg, fontSize: 16, fontWeight: '700' },
-  otpBtn: { height: 54, borderWidth: 1.5, borderColor: COLORS.primary, borderRadius: RADIUS.lg, alignItems: 'center', justifyContent: 'center', marginTop: 10, flexDirection: 'row', gap: 8 },
-  otpBtnText: { color: COLORS.primary, fontSize: 15, fontWeight: '600' },
+  switchLink: { marginTop: 12, alignItems: 'center' },
+  switchText: { color: COLORS.primary, fontSize: 13, fontWeight: '600' },
   divider: { flexDirection: 'row', alignItems: 'center', marginVertical: 16 },
   dividerLine: { flex: 1, height: 1, backgroundColor: COLORS.border },
   dividerText: { marginHorizontal: 12, color: COLORS.textMuted, fontSize: 13 },
-  googleBtn: { height: 54, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: RADIUS.lg, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 10, marginBottom: 10, backgroundColor: COLORS.bgCard },
+  googleBtn: { height: 54, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: RADIUS.lg, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 10, backgroundColor: COLORS.bgCard },
   googleIcon: { fontSize: 18, fontWeight: '800', color: '#4285F4' },
   googleBtnText: { color: COLORS.text, fontSize: 15, fontWeight: '600' },
   guestBtn: { height: 54, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: RADIUS.lg, alignItems: 'center', justifyContent: 'center' },
