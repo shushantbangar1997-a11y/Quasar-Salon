@@ -71,6 +71,18 @@ Firebase project: **quasar-salon**
 - Firestore security rules deployed (allow authenticated users to read/write their own bookings)
 - 8 staff members seeded via `backend/scripts/seedStaff.js`
 
+## Authentication
+
+Three sign-in methods are implemented (Task #22):
+
+1. **Email + Password** — existing Firebase email/password; sign-in on LoginScreen, create account on SignUpScreen
+2. **Email OTP** — user enters email → backend sends 6-digit code via Gmail SMTP (nodemailer) → OTPScreen → `signInWithCustomToken`; backend endpoints: `POST /auth/send-otp` + `POST /auth/verify-otp` using Firestore `otps` collection (5-min expiry)
+3. **Google Sign-In** — `expo-auth-session/providers/google` + `GoogleAuthProvider.credential` + `signInWithCredential`; available on both Login and Sign-Up screens
+
+OTP flow: code stored in Firestore `otps/{email}` doc, deleted after first successful use to prevent replay.
+
+ProfileScreen shows displayName/email from `auth.currentUser` and has a Sign Out button.
+
 ## Environment variables (all set in shared environment)
 
 - `EXPO_PUBLIC_FIREBASE_API_KEY`
@@ -81,6 +93,9 @@ Firebase project: **quasar-salon**
 - `EXPO_PUBLIC_FIREBASE_APP_ID`
 - `EXPO_PUBLIC_API_BASE_URL` — Replit backend URL (port 8080 dev domain)
 - `FIREBASE_SERVICE_ACCOUNT` — full JSON of Firebase Admin SDK service account key
+- `OTP_EMAIL_USER` — Gmail address used to send OTP emails (secret)
+- `OTP_EMAIL_PASS` — Gmail App Password for OTP email sending (secret)
+- `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` — Google OAuth web client ID for Google Sign-In (secret)
 
 ## Live booking flow
 
