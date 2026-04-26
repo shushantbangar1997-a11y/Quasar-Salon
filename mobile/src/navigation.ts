@@ -19,6 +19,7 @@ export type RootStackParamList = {
   BookingSuccess: { booking: ConfirmedBooking };
   Login: undefined;
   SignUp: undefined;
+  OTP: { email: string };
   Admin: undefined;
 };
 
@@ -55,3 +56,4 @@ export type BookingScreenProps = NativeStackScreenProps<RootStackParamList, 'Boo
 export type BookingSuccessScreenProps = NativeStackScreenProps<RootStackParamList, 'BookingSuccess'>;
 export type LoginScreenProps = NativeStackScreenProps<RootStackParamList, 'Login'>;
 export type SignUpScreenProps = NativeStackScreenProps<RootStackParamList, 'SignUp'>;
+export type OTPScreenProps = NativeStackScreenProps<RootStackParamList, 'OTP'>;

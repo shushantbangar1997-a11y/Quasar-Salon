@@ -2,6 +2,7 @@ import * as admin from 'firebase-admin';
 import * as cors from 'cors';
 import * as express from 'express';
 import type { RequestHandler } from 'express';
+import * as nodemailer from 'nodemailer';
 import {
   BookingStatus,
   CreateBookingRequest,
@@ -131,10 +132,123 @@ function blockedSlotDocId(staffId: string, dateStr: string, timeSlot: string): s
   return `${staffId}__${dateStr}__${safeSlot}`;
 }
 
+/** ──── OTP helpers ──── */
+
+function makeTransport() {
+  return nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.OTP_EMAIL_USER,
+      pass: process.env.OTP_EMAIL_PASS,
+    },
+  });
+}
+
+function generateOtp(): string {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+
 /** ──── Routes ──── */
 
 app.get('/health', (_req, res) => {
   res.json({ ok: true, service: 'quasar-salon-api' });
+});
+
+/** POST /auth/send-otp — generate & email a 6-digit code */
+app.post('/auth/send-otp', async (req, res) => {
+  const { email } = req.body as { email?: unknown };
+  if (!isNonEmptyString(email) || !email.includes('@')) {
+    return void badRequest(res, 'A valid email address is required');
+  }
+  const normalised = email.toLowerCase().trim();
+  const code = generateOtp();
+  const expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes
+
+  try {
+    await db.collection('otps').doc(normalised).set({ code, expiresAt, createdAt: admin.firestore.FieldValue.serverTimestamp() });
+
+    if (!process.env.OTP_EMAIL_USER || !process.env.OTP_EMAIL_PASS) {
+      console.warn('OTP email credentials not configured — skipping email send. Code:', code);
+      return void res.status(200).json({ sent: true, _dev_code: code });
+    }
+
+    const transport = makeTransport();
+    await transport.sendMail({
+      from: `"Quasar Salon" <${process.env.OTP_EMAIL_USER}>`,
+      to: normalised,
+      subject: 'Your Quasar Salon verification code',
+      html: `
+        <div style="font-family:sans-serif;max-width:420px;margin:auto;padding:32px;background:#FAF8F5;border-radius:12px">
+          <h2 style="color:#1A1A1A;margin-bottom:8px">Quasar Salon</h2>
+          <p style="color:#666;margin-bottom:24px">Use the code below to sign in. It expires in 5 minutes.</p>
+          <div style="background:#fff;border:1px solid #E8DDD4;border-radius:10px;padding:24px;text-align:center">
+            <span style="font-size:40px;font-weight:800;letter-spacing:10px;color:#C9A84C">${code}</span>
+          </div>
+          <p style="color:#999;font-size:12px;margin-top:24px">If you did not request this code, you can safely ignore this email.</p>
+        </div>
+      `,
+    });
+
+    res.status(200).json({ sent: true });
+  } catch (err) {
+    console.error('POST /auth/send-otp error:', err);
+    res.status(500).json({ error: 'Failed to send OTP' });
+  }
+});
+
+/** POST /auth/verify-otp — verify code, return Firebase custom token */
+app.post('/auth/verify-otp', async (req, res) => {
+  const { email, code } = req.body as { email?: unknown; code?: unknown };
+  if (!isNonEmptyString(email) || !email.includes('@')) {
+    return void badRequest(res, 'A valid email address is required');
+  }
+  if (!isNonEmptyString(code)) {
+    return void badRequest(res, 'code is required');
+  }
+  const normalised = email.toLowerCase().trim();
+
+  try {
+    const snap = await db.collection('otps').doc(normalised).get();
+    if (!snap.exists) {
+      return void res.status(400).json({ error: 'No OTP found for this email. Please request a new code.' });
+    }
+    const data = snap.data()!;
+    if (Date.now() > (data.expiresAt as number)) {
+      await db.collection('otps').doc(normalised).delete();
+      return void res.status(400).json({ error: 'Code has expired. Please request a new one.' });
+    }
+    if (data.code !== code.trim()) {
+      return void res.status(400).json({ error: 'Incorrect code. Please try again.' });
+    }
+
+    // Code verified — delete it to prevent reuse
+    await db.collection('otps').doc(normalised).delete();
+
+    // Look up or create a Firebase Auth user for this email
+    let uid: string;
+    try {
+      const existing = await admin.auth().getUserByEmail(normalised);
+      uid = existing.uid;
+    } catch {
+      const created = await admin.auth().createUser({ email: normalised });
+      uid = created.uid;
+      await db.collection('users').doc(uid).set({
+        id: uid,
+        email: normalised,
+        name: normalised.split('@')[0],
+        role: 'client',
+        favourites: [],
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      }, { merge: true });
+    }
+
+    const token = await admin.auth().createCustomToken(uid);
+    res.status(200).json({ token });
+  } catch (err) {
+    console.error('POST /auth/verify-otp error:', err);
+    res.status(500).json({ error: 'Verification failed' });
+  }
 });
 
 app.get('/users/me', authenticateUser, async (req, res) => {
