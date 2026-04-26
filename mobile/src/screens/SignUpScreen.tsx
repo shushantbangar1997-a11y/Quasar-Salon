@@ -25,21 +25,27 @@ export default function SignUpScreen({ navigation }: SignUpScreenProps) {
   const [otpError, setOtpError] = useState('');
   const [usePassword, setUsePassword] = useState(false);
 
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [_googleRequest, googleResponse, promptGoogleAsync] = Google.useAuthRequest({
     webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
   });
 
   React.useEffect(() => {
-    if (googleResponse?.type === 'success') {
+    if (!googleResponse) return;
+    if (googleResponse.type === 'success') {
       const { authentication } = googleResponse;
       if (authentication?.idToken && auth) {
-        setLoading(true);
+        setGoogleLoading(true);
         const credential = GoogleAuthProvider.credential(authentication.idToken);
         signInWithCredential(auth, credential)
           .then(() => navigation.navigate('MainTabs'))
           .catch(e => setError(e instanceof Error ? e.message : 'Google sign-in failed'))
-          .finally(() => setLoading(false));
+          .finally(() => setGoogleLoading(false));
+      } else {
+        setGoogleLoading(false);
       }
+    } else {
+      setGoogleLoading(false);
     }
   }, [googleResponse]);
 
@@ -98,12 +104,17 @@ export default function SignUpScreen({ navigation }: SignUpScreenProps) {
 
           {/* Google Sign-Up */}
           <Pressable
-            style={[s.googleBtn, loading && { opacity: 0.6 }]}
-            onPress={() => promptGoogleAsync()}
-            disabled={loading}
+            style={[s.googleBtn, (loading || googleLoading) && { opacity: 0.6 }]}
+            onPress={() => { setGoogleLoading(true); promptGoogleAsync(); }}
+            disabled={loading || googleLoading}
           >
-            <Text style={s.googleIcon}>G</Text>
-            <Text style={s.googleBtnText}>Sign up with Google</Text>
+            {googleLoading
+              ? <ActivityIndicator color={COLORS.text} />
+              : <>
+                  <Text style={s.googleIcon}>G</Text>
+                  <Text style={s.googleBtnText}>Sign up with Google</Text>
+                </>
+            }
           </Pressable>
 
           <View style={s.divider}>

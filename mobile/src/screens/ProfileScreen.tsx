@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet, SafeAreaView, StatusBar, Alert, Switch, Image } from 'react-native';
+import { View, Text, ScrollView, Pressable, StyleSheet, SafeAreaView, StatusBar, Alert, Switch, Image, ActivityIndicator } from 'react-native';
 import { signOut } from 'firebase/auth';
 import { auth } from '../firebase';
 import { COLORS, RADIUS } from '../theme';
@@ -50,7 +50,11 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
         {/* Profile card */}
         <View style={s.profileCard}>
           <View style={s.avatarCircle}>
-            <Text style={{ fontSize: 40 }}>👤</Text>
+            {!isAnon && user?.photoURL ? (
+              <Image source={{ uri: user.photoURL }} style={s.avatarImg} />
+            ) : (
+              <Text style={{ fontSize: 40 }}>👤</Text>
+            )}
           </View>
           <Text style={s.name}>{isAnon ? 'Guest' : (user?.displayName || user?.email || 'User')}</Text>
           <Text style={s.email}>{isAnon ? 'Browsing as guest' : (user?.email || '')}</Text>
@@ -156,7 +160,8 @@ const s = StyleSheet.create({
   logoBar: { backgroundColor: COLORS.bgCard, alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   logo: { width: 120, height: 36 },
   profileCard: { backgroundColor: COLORS.bgCard, alignItems: 'center', padding: 28, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  avatarCircle: { width: 88, height: 88, borderRadius: 44, backgroundColor: COLORS.primaryDim, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: COLORS.primary },
+  avatarCircle: { width: 88, height: 88, borderRadius: 44, backgroundColor: COLORS.primaryDim, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: COLORS.primary, overflow: 'hidden' },
+  avatarImg: { width: 88, height: 88, borderRadius: 44 },
   name: { fontSize: 22, fontWeight: '800', color: COLORS.text, marginTop: 14 },
   email: { fontSize: 14, color: COLORS.textSecondary, marginTop: 4 },
   anonBanner: { backgroundColor: COLORS.primaryDim, borderRadius: RADIUS.lg, padding: 16, marginTop: 16, width: '100%', alignItems: 'center', borderWidth: 1, borderColor: COLORS.border },

@@ -141,8 +141,8 @@ exports.app.post('/auth/send-otp', async (req, res) => {
     try {
         await db.collection('otps').doc(normalised).set({ code, expiresAt, createdAt: admin.firestore.FieldValue.serverTimestamp() });
         if (!process.env.OTP_EMAIL_USER || !process.env.OTP_EMAIL_PASS) {
-            console.warn('OTP email credentials not configured — skipping email send. Code:', code);
-            return void res.status(200).json({ sent: true, _dev_code: code });
+            console.warn('OTP email credentials not configured — OTP_EMAIL_USER and OTP_EMAIL_PASS must be set');
+            return void res.status(500).json({ error: 'Email service is not configured. Please contact support.' });
         }
         const transport = makeTransport();
         await transport.sendMail({
