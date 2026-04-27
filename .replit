@@ -39,7 +39,7 @@ outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd mobile && [ -n \"$REPLIT_DEV_DOMAIN\" ] || { echo 'ERROR: REPLIT_DEV_DOMAIN is not set; phone QR will not work'; exit 1; }; EXPO_PACKAGER_PROXY_URL=\"https://$REPLIT_DEV_DOMAIN\" REACT_NATIVE_PACKAGER_HOSTNAME=\"$REPLIT_DEV_DOMAIN\" EXPO_PUBLIC_API_BASE_URL=\"https://$REPLIT_DEV_DOMAIN\" npx expo start --web --port 5000"
+args = "cd mobile && EXPO_PUBLIC_API_BASE_URL=\"https://$REPLIT_DEV_DOMAIN\" npx expo start --web --port 5000 --tunnel"
 waitForPort = 5000
 
 [[workflows.workflow]]
@@ -74,7 +74,6 @@ outputType = "console"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "cd backend && PORT=8080 node functions/lib/server.js"
-waitForPort = 8080
 
 [[ports]]
 localPort = 5000
@@ -95,6 +94,7 @@ EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET = "quasar-salon.firebasestorage.app"
 EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID = "970869144881"
 EXPO_PUBLIC_FIREBASE_APP_ID = "1:970869144881:web:9d51e608656c3e574c8410"
 EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID = "G-14Y4X76C8X"
+GCLOUD_PROJECT = "quasar-salon"
 
 [postMerge]
 path = "scripts/post-merge.sh"

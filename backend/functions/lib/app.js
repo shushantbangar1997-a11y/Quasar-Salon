@@ -20,7 +20,9 @@ if (admin.apps.length === 0) {
         }
     }
     else {
-        admin.initializeApp();
+        console.warn('FIREBASE_SERVICE_ACCOUNT is not set — initialising Firebase Admin with projectId only. ' +
+            'Firestore writes and Auth token verification will fail until the secret is configured.');
+        admin.initializeApp({ projectId: 'quasar-salon' });
     }
 }
 const db = admin.firestore();

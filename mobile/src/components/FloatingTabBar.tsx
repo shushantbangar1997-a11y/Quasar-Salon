@@ -67,7 +67,7 @@ export default function FloatingTabBar({ state, navigation }: BottomTabBarProps)
   const hideBar = () => {
     Animated.spring(barY, {
       toValue: HIDE_DIST,
-      useNativeDriver: true,
+      useNativeDriver: false,
       tension: 120,
       friction: 14,
     }).start(() => {
@@ -81,7 +81,7 @@ export default function FloatingTabBar({ state, navigation }: BottomTabBarProps)
     setHidden(false);
     Animated.spring(barY, {
       toValue: 0,
-      useNativeDriver: true,
+      useNativeDriver: false,
       tension: 180,
       friction: 18,
     }).start();
@@ -102,7 +102,7 @@ export default function FloatingTabBar({ state, navigation }: BottomTabBarProps)
         } else {
           Animated.spring(barY, {
             toValue: 0,
-            useNativeDriver: true,
+            useNativeDriver: false,
             tension: 180,
             friction: 18,
           }).start();
@@ -126,7 +126,7 @@ export default function FloatingTabBar({ state, navigation }: BottomTabBarProps)
   useEffect(() => {
     Animated.spring(indicatorX, {
       toValue: state.index * TAB_W + 5,
-      useNativeDriver: true,
+      useNativeDriver: false,
       tension: 200,
       friction: 20,
     }).start();
@@ -138,13 +138,13 @@ export default function FloatingTabBar({ state, navigation }: BottomTabBarProps)
         Animated.timing(tooltipOpacity, {
           toValue: 1,
           duration: 200,
-          useNativeDriver: true,
+          useNativeDriver: false,
         }),
         Animated.spring(tooltipY, {
           toValue: 0,
           tension: 280,
           friction: 22,
-          useNativeDriver: true,
+          useNativeDriver: false,
         }),
       ]).start();
       prevIndex.current = state.index;
