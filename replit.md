@@ -57,11 +57,17 @@ mobile/
 - Workflow `Start application` runs Expo on port `5000` with three injected env vars:
   - `EXPO_PACKAGER_PROXY_URL=https://$REPLIT_DEV_DOMAIN` — the URL Expo advertises in the manifest / QR.
   - `REACT_NATIVE_PACKAGER_HOSTNAME=$REPLIT_DEV_DOMAIN` — the host Expo binds in the manifest.
-  - `EXPO_PUBLIC_API_BASE_URL=https://8080-$REPLIT_DEV_DOMAIN` — backend URL baked into the JS bundle so the native app on a phone (where `window.location` is unavailable) can reach the backend.
+  - `EXPO_PUBLIC_API_BASE_URL=https://$REPLIT_DEV_DOMAIN` — public origin baked into the JS bundle. The client appends `/api/...` and Metro proxies that to the backend (see below). Used for both web and native.
   Plus a fail-fast guard that exits if `REPLIT_DEV_DOMAIN` is unset.
 - This makes Expo announce its manifest URL as the public Replit domain (no port suffix — port 5000 is mapped to external HTTPS port 80), so the QR code Expo prints in the workflow logs points at a real public HTTPS URL that Expo Go can reach on any phone (no ngrok required).
-- Web preview iframe also works on port 5000 unchanged. In the browser the API URL is auto-derived from `window.location` (see `mobile/src/api.ts`), so the env var above is primarily for native.
+- Web preview iframe also works on port 5000 unchanged. The browser uses relative `/api/...` URLs (see `mobile/src/api.ts`), which hit the same dev-server proxy.
 - Assumption: this relies on Replit keeping `REPLIT_DEV_DOMAIN` set and the port mapping `localPort 5000 -> externalPort 80`. If either changes, this workflow needs to be updated.
+
+### Backend reachability via Metro proxy
+
+Replit only routes one external HTTPS port (5000 -> 80) reliably for this repl, so the public `https://8080-<repl-domain>` URL does NOT actually reach the backend (it returns Replit's "Run this app" placeholder page). To work around this, `mobile/metro.config.js` adds an `enhanceMiddleware` that proxies any request starting with `/api/` to `http://localhost:8080` (stripping the `/api` prefix). All API calls — from both the browser preview AND the phone via Expo Go — therefore hit `https://<repl-domain>/api/...` and get forwarded to the Express backend.
+
+This means the `Start Backend` workflow must be running for any API call to succeed.
 
 ### Phone testing with Expo Go
 1. Open the workflow logs for `Start application` and find the QR or the `exp://...sisko.replit.dev` URL.
@@ -69,7 +75,7 @@ mobile/
 3. The Quasar Salon app loads inside Expo Go directly from the Replit dev server.
 
 Troubleshooting:
-- **App loads but Sign In / Cart / Booking calls fail**: confirm `EXPO_PUBLIC_API_BASE_URL` printed in the workflow logs resolves to a reachable backend at `https://8080-<repl-domain>`. Check the `Start Backend` workflow is running.
+- **App loads but Sign In / Cart / Booking calls fail**: confirm the `Start Backend` workflow is running, and verify `curl https://$REPLIT_DEV_DOMAIN/api/staff` returns JSON from the backend (not the Replit placeholder HTML). If you see HTML, the Metro middleware in `mobile/metro.config.js` is broken or backend isn't on `localhost:8080`.
 - **QR opens "HTTP 502" in Expo Go**: confirm Replit didn't change the port mapping (5000 must map to external 80) and that the workflow's fail-fast guard didn't trip on a missing `REPLIT_DEV_DOMAIN`.
 
 ## Backend deployment (Replit)
@@ -106,7 +112,7 @@ ProfileScreen shows displayName/email from `auth.currentUser` and has a Sign Out
 - `EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET`
 - `EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
 - `EXPO_PUBLIC_FIREBASE_APP_ID`
-- `EXPO_PUBLIC_API_BASE_URL` — Replit backend URL (port 8080 dev domain)
+- `EXPO_PUBLIC_API_BASE_URL` — public origin for the Expo dev server (Metro proxies `/api/*` to the backend)
 - `FIREBASE_SERVICE_ACCOUNT` — full JSON of Firebase Admin SDK service account key
 - `OTP_EMAIL_USER` — Gmail address used to send OTP emails (secret)
 - `OTP_EMAIL_PASS` — Gmail App Password for OTP email sending (secret)

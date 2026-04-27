@@ -3,20 +3,19 @@ import { StaffMember } from './quasarData';
 import { CartItem } from './CartContext';
 
 function resolveApiBaseUrl(): string {
+  // The backend is reached through the Expo dev server's `/api/*` proxy
+  // (see mobile/metro.config.js). This works for both the browser preview
+  // and native Expo Go because Replit only routes one external port.
+  //
+  // - Web (browser): use a relative URL (same-origin fetch goes back to
+  //   the dev server, which proxies /api/* to the backend).
+  // - Native (Expo Go on phone): EXPO_PUBLIC_API_BASE_URL is baked into
+  //   the bundle and points at the public Expo dev server URL, where the
+  //   same /api proxy applies.
   const envUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
-  if (envUrl) return envUrl;
-  // In Expo Web (browser), derive the backend URL from the current hostname.
-  // Replit proxies each port at {port}-{base-domain}, so replace the main
-  // domain with the backend port prefix.
-  if (typeof window !== 'undefined' && window.location?.hostname) {
-    const host = window.location.hostname;
-    if (host.endsWith('.replit.dev')) {
-      // Strip any existing port prefix (e.g. "5000-") then add "8080-"
-      const base = host.replace(/^\d+-/, '');
-      return `https://8080-${base}`;
-    }
-  }
-  return '';
+  if (envUrl) return `${envUrl.replace(/\/$/, '')}/api`;
+  if (typeof window !== 'undefined') return '/api';
+  return '/api';
 }
 
 export const API_BASE_URL = resolveApiBaseUrl();
