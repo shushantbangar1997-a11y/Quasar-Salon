@@ -79,6 +79,10 @@ args = "cd backend && PORT=8080 node functions/lib/server.js"
 localPort = 5000
 externalPort = 80
 
+[[ports]]
+localPort = 5001
+externalPort = 3000
+
 [deployment]
 deploymentTarget = "static"
 build = ["sh", "-c", "cd mobile && npx expo export --platform web --output-dir dist"]
