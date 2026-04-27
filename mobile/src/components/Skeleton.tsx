@@ -6,9 +6,8 @@ import {
   ViewStyle,
   StyleProp,
   ImageSourcePropType,
-  ImageResizeMode,
-  ImageStyle,
 } from 'react-native';
+import { Image, ImageContentFit } from 'expo-image';
 import { COLORS } from '../theme';
 
 interface SkeletonProps {
@@ -20,8 +19,7 @@ interface SkeletonProps {
 
 /**
  * A shimmering rounded rectangle used as a placeholder.
- * Uses a subtle gold/cream pulse on the brand bgElevated color
- * (no third-party gradient lib required).
+ * Uses a subtle gold/cream pulse on the brand bgElevated color.
  */
 export function Skeleton({ width, height, radius = 8, style }: SkeletonProps) {
   const pulse = useRef(new Animated.Value(0)).current;
@@ -29,16 +27,8 @@ export function Skeleton({ width, height, radius = 8, style }: SkeletonProps) {
   useEffect(() => {
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(pulse, {
-          toValue: 1,
-          duration: 850,
-          useNativeDriver: false,
-        }),
-        Animated.timing(pulse, {
-          toValue: 0,
-          duration: 850,
-          useNativeDriver: false,
-        }),
+        Animated.timing(pulse, { toValue: 1, duration: 850, useNativeDriver: false }),
+        Animated.timing(pulse, { toValue: 0, duration: 850, useNativeDriver: false }),
       ])
     );
     loop.start();
@@ -66,10 +56,9 @@ export function Skeleton({ width, height, radius = 8, style }: SkeletonProps) {
 }
 
 /**
- * Returns true when the given image source is a remote URL (or otherwise
- * an `{ uri }` object) — i.e. NOT a bundled `require(...)` asset.
- * Use this to decide whether to render skeleton placeholders for sibling
- * text content while the image loads.
+ * Returns true when the given image source is a remote URL (i.e. not a
+ * bundled `require(...)` asset). Use this to decide whether to render
+ * skeleton bars for sibling text content while the image loads.
  */
 export function isRemoteImageSource(source: ImageSourcePropType | undefined | null): boolean {
   return (
@@ -82,21 +71,24 @@ export function isRemoteImageSource(source: ImageSourcePropType | undefined | nu
 
 interface SkeletonImageProps {
   source: ImageSourcePropType;
-  style?: StyleProp<ImageStyle>;
-  resizeMode?: ImageResizeMode;
+  style?: StyleProp<ViewStyle>;
+  resizeMode?: ImageContentFit;
   radius?: number;
   onLoad?: () => void;
   onError?: () => void;
-  /** Optional fallback rendered when the image fails to load. */
+  /** Optional node rendered when the image fails to load. */
   fallback?: React.ReactNode;
 }
 
 /**
- * Wraps an Image with a shimmering skeleton that fades into the real image
- * once `onLoad` (or `onError`) fires.
+ * Renders an image that shows a soft placeholder colour while loading,
+ * then smoothly crossfades into the real image once it arrives.
  *
- * Local `require(...)` assets (passed as a number/asset id) skip the skeleton
- * entirely — they're already bundled and have no real load time.
+ * Backed by expo-image which provides memory + disk caching, so images
+ * load from cache instantly on every subsequent render.
+ *
+ * If the image fails to load and a `fallback` node is provided, the
+ * fallback is shown in place of the broken image.
  */
 export function SkeletonImage({
   source,
@@ -107,65 +99,36 @@ export function SkeletonImage({
   onError,
   fallback,
 }: SkeletonImageProps) {
-  // Detect local bundled asset (require() result):
-  //  - native: a number (asset id)
-  //  - we treat anything that isn't an object with a string `uri` as local.
-  const isRemote =
-    !!source &&
-    typeof source === 'object' &&
-    !Array.isArray(source) &&
-    typeof (source as { uri?: unknown }).uri === 'string';
-
-  const [loaded, setLoaded] = useState(!isRemote);
   const [errored, setErrored] = useState(false);
-  const fade = useRef(new Animated.Value(isRemote ? 0 : 1)).current;
-
-  const reveal = () => {
-    Animated.timing(fade, {
-      toValue: 1,
-      duration: 220,
-      useNativeDriver: true,
-    }).start();
-  };
-
-  const handleLoad = () => {
-    setLoaded(true);
-    reveal();
-    onLoad?.();
-  };
 
   const handleError = () => {
     setErrored(true);
-    setLoaded(true);
-    reveal();
     onError?.();
   };
 
   return (
-    <View style={[styles.wrap, { borderRadius: radius }, style as StyleProp<ViewStyle>]}>
-      {!loaded && (
-        <Skeleton
-          radius={radius}
-          style={StyleSheet.absoluteFillObject}
-        />
-      )}
+    <View style={[s.wrap, { borderRadius: radius }, style]}>
       {errored && fallback ? (
         <View style={StyleSheet.absoluteFillObject}>{fallback}</View>
       ) : (
-        <Animated.Image
+        <Image
           source={source}
-          resizeMode={resizeMode}
-          onLoad={handleLoad}
+          contentFit={resizeMode}
+          style={[StyleSheet.absoluteFillObject, { borderRadius: radius }]}
+          transition={300}
+          cachePolicy="memory-disk"
+          placeholder={COLORS.bgElevated}
+          onLoad={() => onLoad?.()}
           onError={handleError}
-          style={[StyleSheet.absoluteFillObject, { opacity: fade, borderRadius: radius }]}
         />
       )}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const s = StyleSheet.create({
   wrap: {
     overflow: 'hidden',
+    backgroundColor: COLORS.bgElevated,
   },
 });
