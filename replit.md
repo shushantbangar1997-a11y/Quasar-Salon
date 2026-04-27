@@ -54,8 +54,23 @@ mobile/
 
 ## Replit setup
 
-- Workflow `Start application` runs `cd mobile && npx expo start --web --port 5000 --host lan` and serves the web build on port `5000`.
-- Frontend binds host through Expo Web (Metro dev server) which accepts proxied requests, so it works inside the Replit preview iframe.
+- Workflow `Start application` runs Expo on port `5000` with three injected env vars:
+  - `EXPO_PACKAGER_PROXY_URL=https://$REPLIT_DEV_DOMAIN` — the URL Expo advertises in the manifest / QR.
+  - `REACT_NATIVE_PACKAGER_HOSTNAME=$REPLIT_DEV_DOMAIN` — the host Expo binds in the manifest.
+  - `EXPO_PUBLIC_API_BASE_URL=https://8080-$REPLIT_DEV_DOMAIN` — backend URL baked into the JS bundle so the native app on a phone (where `window.location` is unavailable) can reach the backend.
+  Plus a fail-fast guard that exits if `REPLIT_DEV_DOMAIN` is unset.
+- This makes Expo announce its manifest URL as the public Replit domain (no port suffix — port 5000 is mapped to external HTTPS port 80), so the QR code Expo prints in the workflow logs points at a real public HTTPS URL that Expo Go can reach on any phone (no ngrok required).
+- Web preview iframe also works on port 5000 unchanged. In the browser the API URL is auto-derived from `window.location` (see `mobile/src/api.ts`), so the env var above is primarily for native.
+- Assumption: this relies on Replit keeping `REPLIT_DEV_DOMAIN` set and the port mapping `localPort 5000 -> externalPort 80`. If either changes, this workflow needs to be updated.
+
+### Phone testing with Expo Go
+1. Open the workflow logs for `Start application` and find the QR or the `exp://...sisko.replit.dev` URL.
+2. Scan it with Expo Go (Android) or the Camera app (iOS).
+3. The Quasar Salon app loads inside Expo Go directly from the Replit dev server.
+
+Troubleshooting:
+- **App loads but Sign In / Cart / Booking calls fail**: confirm `EXPO_PUBLIC_API_BASE_URL` printed in the workflow logs resolves to a reachable backend at `https://8080-<repl-domain>`. Check the `Start Backend` workflow is running.
+- **QR opens "HTTP 502" in Expo Go**: confirm Replit didn't change the port mapping (5000 must map to external 80) and that the workflow's fail-fast guard didn't trip on a missing `REPLIT_DEV_DOMAIN`.
 
 ## Backend deployment (Replit)
 
