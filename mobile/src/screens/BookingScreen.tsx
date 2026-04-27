@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, ScrollView, Pressable, StyleSheet,
-  SafeAreaView, StatusBar, ActivityIndicator, Image,
+  SafeAreaView, StatusBar, ActivityIndicator,
 } from 'react-native';
 import { useCart } from '../CartContext';
 import { useBookings } from '../BookingsContext';
@@ -17,6 +17,7 @@ import {
   buildQuasarBookingPayload,
 } from '../api';
 import CalendarTimePicker from '../components/CalendarTimePicker';
+import { Skeleton, SkeletonImage } from '../components/Skeleton';
 
 type Step = 'date' | 'stylist' | 'confirm';
 
@@ -284,37 +285,13 @@ export default function BookingScreen({ navigation, route }: BookingScreenProps)
               const isBusy = !isStaffAvailableAtTime(staff, selectedTime);
               const active = selectedStylist?.id === staff.id;
               return (
-                <Pressable
+                <StylistCard
                   key={staff.id}
-                  onPress={() => !isBusy && setSelectedStylist(staff)}
-                  disabled={isBusy}
-                  style={[s.stylistCard, active && s.stylistCardActive, isBusy && s.stylistCardBusy]}
-                >
-                  <View style={[s.stylistEmoji, active && { backgroundColor: COLORS.primary }]}>
-                    {staff.photoUri ? (
-                      <Image source={{ uri: staff.photoUri }} style={s.stylistPhoto} />
-                    ) : (
-                      <Text style={{ fontSize: 28 }}>{staff.emoji}</Text>
-                    )}
-                  </View>
-                  <View style={{ flex: 1, marginLeft: 14 }}>
-                    <Text style={[s.stylistName, isBusy && s.textDim]}>{staff.name}</Text>
-                    <Text style={s.stylistRole}>{staff.role}</Text>
-                    <Text style={s.stylistExp}>{staff.experience} experience</Text>
-                    <View style={s.specialtyRow}>
-                      {staff.specialties.slice(0, 2).map(sp => (
-                        <View key={sp} style={s.spTag}>
-                          <Text style={s.spTagText} numberOfLines={1}>{sp}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  </View>
-                  <View style={[s.availBadge, isBusy ? s.availBadgeOff : s.availBadgeOn]}>
-                    <Text style={[s.availText, isBusy && { color: COLORS.error }]}>
-                      {isBusy ? 'Busy' : 'Free'}
-                    </Text>
-                  </View>
-                </Pressable>
+                  staff={staff}
+                  isBusy={isBusy}
+                  active={active}
+                  onSelect={() => !isBusy && setSelectedStylist(staff)}
+                />
               );
             })}
           </View>
@@ -392,6 +369,80 @@ export default function BookingScreen({ navigation, route }: BookingScreenProps)
   );
 }
 
+function StylistCard({
+  staff,
+  isBusy,
+  active,
+  onSelect,
+}: {
+  staff: StaffMember;
+  isBusy: boolean;
+  active: boolean;
+  onSelect: () => void;
+}) {
+  const hasPhoto = !!staff.photoUri;
+  const [photoReady, setPhotoReady] = useState(!hasPhoto);
+
+  return (
+    <Pressable
+      onPress={onSelect}
+      disabled={isBusy}
+      style={[s.stylistCard, active && s.stylistCardActive, isBusy && s.stylistCardBusy]}
+    >
+      <View style={[s.stylistEmoji, active && { backgroundColor: COLORS.primary }]}>
+        {hasPhoto ? (
+          <SkeletonImage
+            source={{ uri: staff.photoUri! }}
+            style={s.stylistPhoto}
+            radius={28}
+            resizeMode="cover"
+            onLoad={() => setPhotoReady(true)}
+            onError={() => setPhotoReady(true)}
+            fallback={
+              <View style={s.stylistEmojiFallback}>
+                <Text style={{ fontSize: 28 }}>{staff.emoji}</Text>
+              </View>
+            }
+          />
+        ) : (
+          <Text style={{ fontSize: 28 }}>{staff.emoji}</Text>
+        )}
+      </View>
+      <View style={{ flex: 1, marginLeft: 14 }}>
+        {photoReady ? (
+          <>
+            <Text style={[s.stylistName, isBusy && s.textDim]}>{staff.name}</Text>
+            <Text style={s.stylistRole}>{staff.role}</Text>
+            <Text style={s.stylistExp}>{staff.experience} experience</Text>
+            <View style={s.specialtyRow}>
+              {staff.specialties.slice(0, 2).map(sp => (
+                <View key={sp} style={s.spTag}>
+                  <Text style={s.spTagText} numberOfLines={1}>{sp}</Text>
+                </View>
+              ))}
+            </View>
+          </>
+        ) : (
+          <>
+            <Skeleton width={140} height={14} radius={4} />
+            <Skeleton width={100} height={11} radius={4} style={{ marginTop: 6 }} />
+            <Skeleton width={80} height={11} radius={4} style={{ marginTop: 6 }} />
+            <View style={[s.specialtyRow, { marginTop: 8 }]}>
+              <Skeleton width={56} height={16} radius={6} />
+              <Skeleton width={56} height={16} radius={6} />
+            </View>
+          </>
+        )}
+      </View>
+      <View style={[s.availBadge, isBusy ? s.availBadgeOff : s.availBadgeOn]}>
+        <Text style={[s.availText, isBusy && { color: COLORS.error }]}>
+          {isBusy ? 'Busy' : 'Free'}
+        </Text>
+      </View>
+    </Pressable>
+  );
+}
+
 function SumRow({ label, value }: { label: string; value: string }) {
   return (
     <View style={s.sumRow}>
@@ -444,6 +495,7 @@ const s = StyleSheet.create({
   stylistCardBusy: { opacity: 0.45 },
   stylistEmoji: { width: 56, height: 56, borderRadius: 28, backgroundColor: COLORS.bgElevated, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   stylistPhoto: { width: 56, height: 56, borderRadius: 28 },
+  stylistEmojiFallback: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bgElevated, borderRadius: 28 },
   stylistName: { fontSize: 16, fontWeight: '700', color: COLORS.text },
   stylistRole: { fontSize: 13, color: COLORS.primary, marginTop: 2 },
   stylistExp: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },

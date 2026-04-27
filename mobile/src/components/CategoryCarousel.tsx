@@ -1,10 +1,11 @@
 import React, { useRef, useState, useCallback } from 'react';
 import {
-  View, Text, ScrollView, Pressable, Image,
+  View, Text, ScrollView, Pressable,
   Animated, StyleSheet, Dimensions,
 } from 'react-native';
 import { COLORS, RADIUS } from '../theme';
 import { QuasarCategory } from '../quasarData';
+import { SkeletonImage, isRemoteImageSource } from './Skeleton';
 
 const { width: SW } = Dimensions.get('window');
 const CARD_W = SW - 40;
@@ -86,34 +87,11 @@ export default function CategoryCarousel({ categories, onSelect }: Props) {
         scrollEventThrottle={16}
       >
         {categories.map((cat, i) => (
-          <Pressable
+          <CarouselSlide
             key={cat.id}
-            style={s.slide}
+            cat={cat}
             onPress={() => i === activeIdx ? onSelect(cat) : goTo(i)}
-          >
-            <Image
-              source={
-                typeof cat.imageUrl === 'string'
-                  ? { uri: cat.imageUrl }
-                  : cat.imageUrl
-              }
-              style={s.slideImg}
-              resizeMode="cover"
-            />
-            {/* Gold gradient overlay at bottom */}
-            <View style={s.slideOverlay}>
-              <View style={s.overlayContent}>
-                <Text style={s.catIcon}>{cat.icon}</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.catName}>{cat.name}</Text>
-                  <Text style={s.catCount}>{cat.services.length} services</Text>
-                </View>
-                <View style={s.tapBadge}>
-                  <Text style={s.tapBadgeText}>View →</Text>
-                </View>
-              </View>
-            </View>
-          </Pressable>
+          />
         ))}
       </ScrollView>
 
@@ -143,7 +121,7 @@ export default function CategoryCarousel({ categories, onSelect }: Props) {
               style={[s.thumb, { width: widths[i] }]}
             >
               <Pressable style={s.thumbPressable} onPress={() => goTo(i)}>
-                <Image
+                <SkeletonImage
                   source={
                     typeof cat.imageUrl === 'string'
                       ? { uri: cat.imageUrl }
@@ -151,6 +129,12 @@ export default function CategoryCarousel({ categories, onSelect }: Props) {
                   }
                   style={s.thumbImg}
                   resizeMode="cover"
+                  radius={RADIUS.md}
+                  fallback={
+                    <View style={s.thumbFallback}>
+                      <Text style={s.thumbFallbackIcon}>{cat.icon}</Text>
+                    </View>
+                  }
                 />
                 {isActive && <View style={s.thumbActiveBar} />}
               </Pressable>
@@ -159,6 +143,52 @@ export default function CategoryCarousel({ categories, onSelect }: Props) {
         })}
       </ScrollView>
     </View>
+  );
+}
+
+function CarouselSlide({
+  cat,
+  onPress,
+}: {
+  cat: QuasarCategory;
+  onPress: () => void;
+}) {
+  const source =
+    typeof cat.imageUrl === 'string' ? { uri: cat.imageUrl } : cat.imageUrl;
+  const remote = isRemoteImageSource(source);
+  const [ready, setReady] = useState(!remote);
+
+  return (
+    <Pressable style={s.slide} onPress={onPress}>
+      <SkeletonImage
+        source={source}
+        style={s.slideImg}
+        resizeMode="cover"
+        radius={RADIUS.xl}
+        onLoad={() => setReady(true)}
+        onError={() => setReady(true)}
+        fallback={
+          <View style={s.slideFallback}>
+            <Text style={s.slideFallbackIcon}>{cat.icon}</Text>
+          </View>
+        }
+      />
+      {/* Gold gradient overlay at bottom — only after image is ready */}
+      {ready && (
+        <View style={s.slideOverlay}>
+          <View style={s.overlayContent}>
+            <Text style={s.catIcon}>{cat.icon}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={s.catName}>{cat.name}</Text>
+              <Text style={s.catCount}>{cat.services.length} services</Text>
+            </View>
+            <View style={s.tapBadge}>
+              <Text style={s.tapBadgeText}>View →</Text>
+            </View>
+          </View>
+        </View>
+      )}
+    </Pressable>
   );
 }
 
@@ -175,6 +205,16 @@ const s = StyleSheet.create({
   slideImg: {
     width: '100%',
     height: '100%',
+  },
+  slideFallback: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.bgElevated,
+  },
+  slideFallbackIcon: {
+    fontSize: 56,
+    opacity: 0.6,
   },
   slideOverlay: {
     position: 'absolute',
@@ -251,6 +291,16 @@ const s = StyleSheet.create({
   thumbImg: {
     width: '100%',
     height: '100%',
+  },
+  thumbFallback: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.bgElevated,
+  },
+  thumbFallbackIcon: {
+    fontSize: 18,
+    opacity: 0.7,
   },
   thumbActiveBar: {
     position: 'absolute',

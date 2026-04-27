@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import {
   View, Text, ScrollView, Pressable, StyleSheet,
-  SafeAreaView, StatusBar, Image,
+  SafeAreaView, StatusBar,
 } from 'react-native';
 import { QuasarService } from '../quasarData';
 import { useCart } from '../CartContext';
 import { COLORS, RADIUS } from '../theme';
 import { CategoryScreenProps } from '../navigation';
+import { SkeletonImage } from '../components/Skeleton';
 
 export default function CategoryScreen({ route, navigation }: CategoryScreenProps) {
   const { category } = route.params;
@@ -43,7 +44,17 @@ export default function CategoryScreen({ route, navigation }: CategoryScreenProp
           <Text style={s.subtitle}>{category.services.length} services available</Text>
         </View>
         {category.imageUrl ? (
-          <Image source={typeof category.imageUrl === 'string' ? { uri: category.imageUrl } : category.imageUrl} style={s.headerImage} resizeMode="cover" />
+          <SkeletonImage
+            source={typeof category.imageUrl === 'string' ? { uri: category.imageUrl } : category.imageUrl}
+            style={s.headerImage}
+            resizeMode="cover"
+            radius={12}
+            fallback={
+              <View style={s.headerImageFallback}>
+                <Text style={s.headerImageFallbackIcon}>{category.icon}</Text>
+              </View>
+            }
+          />
         ) : null}
       </View>
 
@@ -124,6 +135,8 @@ const s = StyleSheet.create({
   back: { marginRight: 14 },
   backText: { fontSize: 22, color: COLORS.primary, fontWeight: '700' },
   headerImage: { width: 60, height: 60, borderRadius: 12, marginLeft: 12, backgroundColor: COLORS.bgElevated },
+  headerImageFallback: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bgElevated, borderRadius: 12 },
+  headerImageFallbackIcon: { fontSize: 28, opacity: 0.7 },
   title: { fontSize: 22, fontWeight: '800', color: COLORS.text },
   subtitle: { fontSize: 13, color: COLORS.textSecondary, marginTop: 2 },
   filterRow: { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: COLORS.bgCard, borderBottomWidth: 1, borderBottomColor: COLORS.border, gap: 8 },

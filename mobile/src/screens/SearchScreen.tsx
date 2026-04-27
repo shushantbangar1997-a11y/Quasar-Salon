@@ -3,10 +3,11 @@ import {
   View, Text, TextInput, ScrollView, Pressable,
   StyleSheet, SafeAreaView, StatusBar, Image,
 } from 'react-native';
-import { QUASAR_CATEGORIES, QuasarService } from '../quasarData';
+import { QUASAR_CATEGORIES, QuasarCategory, QuasarService } from '../quasarData';
 import { useCart } from '../CartContext';
 import { COLORS, RADIUS } from '../theme';
 import { SearchScreenProps } from '../navigation';
+import { Skeleton, SkeletonImage, isRemoteImageSource } from '../components/Skeleton';
 
 interface SearchResult {
   service: QuasarService;
@@ -122,44 +123,16 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
             const qty = getQty(r.service.id);
             const cat = catForId(r.catId);
             return (
-              <View key={r.service.id} style={s.card}>
-                <View style={s.svcThumbWrap}>
-                  {(() => {
-                    const src = r.service.imageUrl ?? cat.imageUrl;
-                    return (
-                      <Image
-                        source={typeof src === 'string' ? { uri: src } : src}
-                        style={s.svcThumb}
-                        resizeMode="cover"
-                      />
-                    );
-                  })()}
-                </View>
-                <View style={s.cardMid}>
-                  <Text style={s.svcName} numberOfLines={2}>{r.service.name}</Text>
-                  <Pressable onPress={() => navigation.navigate('Category', { category: cat })}>
-                    <Text style={s.catLabel}>{r.catName} →</Text>
-                  </Pressable>
-                  <Text style={s.price}>₹{r.service.price.toLocaleString('en-IN')}</Text>
-                </View>
-                <View style={s.addWrap}>
-                  {qty === 0 ? (
-                    <Pressable style={s.addBtn} onPress={() => addItem(r.service, cat)}>
-                      <Text style={s.addBtnText}>ADD</Text>
-                    </Pressable>
-                  ) : (
-                    <View style={s.qtyRow}>
-                      <Pressable style={s.qtyBtn} onPress={() => removeItem(r.service.id)}>
-                        <Text style={s.qtyBtnText}>−</Text>
-                      </Pressable>
-                      <Text style={s.qtyNum}>{qty}</Text>
-                      <Pressable style={s.qtyBtn} onPress={() => addItem(r.service, cat)}>
-                        <Text style={s.qtyBtnText}>+</Text>
-                      </Pressable>
-                    </View>
-                  )}
-                </View>
-              </View>
+              <SearchCard
+                key={r.service.id}
+                service={r.service}
+                cat={cat}
+                catName={r.catName}
+                qty={qty}
+                onAdd={() => addItem(r.service, cat)}
+                onRemove={() => removeItem(r.service.id)}
+                onOpenCategory={() => navigation.navigate('Category', { category: cat })}
+              />
             );
           })
         )}
@@ -173,6 +146,81 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
         </Pressable>
       )}
     </SafeAreaView>
+  );
+}
+
+function SearchCard({
+  service,
+  cat,
+  catName,
+  qty,
+  onAdd,
+  onRemove,
+  onOpenCategory,
+}: {
+  service: QuasarService;
+  cat: QuasarCategory;
+  catName: string;
+  qty: number;
+  onAdd: () => void;
+  onRemove: () => void;
+  onOpenCategory: () => void;
+}) {
+  const src = service.imageUrl ?? cat.imageUrl;
+  const source = typeof src === 'string' ? { uri: src } : src;
+  const remote = isRemoteImageSource(source);
+  const [ready, setReady] = useState(!remote);
+
+  return (
+    <View style={s.card}>
+      <SkeletonImage
+        source={source}
+        style={s.svcThumbWrap}
+        resizeMode="cover"
+        radius={RADIUS.md}
+        onLoad={() => setReady(true)}
+        onError={() => setReady(true)}
+        fallback={
+          <View style={s.svcThumbFallback}>
+            <Text style={s.svcThumbFallbackIcon}>{cat.icon}</Text>
+          </View>
+        }
+      />
+      <View style={s.cardMid}>
+        {ready ? (
+          <>
+            <Text style={s.svcName} numberOfLines={2}>{service.name}</Text>
+            <Pressable onPress={onOpenCategory}>
+              <Text style={s.catLabel}>{catName} →</Text>
+            </Pressable>
+            <Text style={s.price}>₹{service.price.toLocaleString('en-IN')}</Text>
+          </>
+        ) : (
+          <>
+            <Skeleton width={140} height={12} radius={4} />
+            <Skeleton width={90} height={10} radius={4} style={{ marginTop: 8 }} />
+            <Skeleton width={70} height={14} radius={4} style={{ marginTop: 8 }} />
+          </>
+        )}
+      </View>
+      <View style={s.addWrap}>
+        {qty === 0 ? (
+          <Pressable style={s.addBtn} onPress={onAdd}>
+            <Text style={s.addBtnText}>ADD</Text>
+          </Pressable>
+        ) : (
+          <View style={s.qtyRow}>
+            <Pressable style={s.qtyBtn} onPress={onRemove}>
+              <Text style={s.qtyBtnText}>−</Text>
+            </Pressable>
+            <Text style={s.qtyNum}>{qty}</Text>
+            <Pressable style={s.qtyBtn} onPress={onAdd}>
+              <Text style={s.qtyBtnText}>+</Text>
+            </Pressable>
+          </View>
+        )}
+      </View>
+    </View>
   );
 }
 
@@ -283,6 +331,13 @@ const s = StyleSheet.create({
     marginRight: 12,
     backgroundColor: COLORS.bgElevated,
   },
+  svcThumbFallback: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.bgElevated,
+  },
+  svcThumbFallbackIcon: { fontSize: 24, opacity: 0.7 },
   svcThumb: {
     width: '100%',
     height: '100%',

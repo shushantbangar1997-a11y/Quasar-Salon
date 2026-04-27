@@ -1,14 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View, Text, ScrollView, Pressable, StyleSheet,
   SafeAreaView, StatusBar, Image,
 } from 'react-native';
 
-import { QUASAR_CATEGORIES } from '../quasarData';
+import { QUASAR_CATEGORIES, QuasarCategory } from '../quasarData';
 import { useCart } from '../CartContext';
 import { COLORS, RADIUS } from '../theme';
 import { HomeScreenProps } from '../navigation';
 import CategoryCarousel from '../components/CategoryCarousel';
+import { Skeleton, SkeletonImage, isRemoteImageSource } from '../components/Skeleton';
 
 const POPULAR = [
   { catId: 'hair-care', svcId: 'hc-8', label: "Men's Haircut", price: 599 },
@@ -64,19 +65,13 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
           {POPULAR.map(p => {
             const cat = QUASAR_CATEGORIES.find(c => c.id === p.catId)!;
             return (
-              <Pressable
+              <PopularCard
                 key={p.svcId}
-                style={s.popularCard}
+                cat={cat}
+                label={p.label}
+                price={p.price}
                 onPress={() => navigation.navigate('Category', { category: cat })}
-              >
-                <Image
-                  source={typeof cat.imageUrl === 'string' ? { uri: cat.imageUrl } : cat.imageUrl}
-                  style={s.popularImage}
-                  resizeMode="cover"
-                />
-                <Text style={s.popularName} numberOfLines={2}>{p.label}</Text>
-                <Text style={s.popularPrice}>₹{p.price.toLocaleString('en-IN')}</Text>
-              </Pressable>
+              />
             );
           })}
         </ScrollView>
@@ -101,6 +96,50 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   );
 }
 
+function PopularCard({
+  cat,
+  label,
+  price,
+  onPress,
+}: {
+  cat: QuasarCategory;
+  label: string;
+  price: number;
+  onPress: () => void;
+}) {
+  const source = typeof cat.imageUrl === 'string' ? { uri: cat.imageUrl } : cat.imageUrl;
+  const remote = isRemoteImageSource(source);
+  const [ready, setReady] = useState(!remote);
+
+  return (
+    <Pressable style={s.popularCard} onPress={onPress}>
+      <SkeletonImage
+        source={source}
+        style={s.popularImage}
+        resizeMode="cover"
+        onLoad={() => setReady(true)}
+        onError={() => setReady(true)}
+        fallback={
+          <View style={s.popularFallback}>
+            <Text style={s.popularFallbackIcon}>{cat.icon}</Text>
+          </View>
+        }
+      />
+      {ready ? (
+        <>
+          <Text style={s.popularName} numberOfLines={2}>{label}</Text>
+          <Text style={s.popularPrice}>₹{price.toLocaleString('en-IN')}</Text>
+        </>
+      ) : (
+        <View style={s.popularTextSkeletons}>
+          <Skeleton width={110} height={12} radius={4} />
+          <Skeleton width={70} height={12} radius={4} style={{ marginTop: 8 }} />
+        </View>
+      )}
+    </Pressable>
+  );
+}
+
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.bg },
   scroll: { flex: 1 },
@@ -117,8 +156,11 @@ const s = StyleSheet.create({
   sectionTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text, paddingHorizontal: 20, marginTop: 28, marginBottom: 14 },
   popularCard: { width: 148, backgroundColor: COLORS.bgCard, borderRadius: RADIUS.lg, overflow: 'hidden', marginRight: 12, borderWidth: 1, borderColor: COLORS.border },
   popularImage: { width: '100%', height: 90, backgroundColor: COLORS.bgElevated },
+  popularFallback: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bgElevated },
+  popularFallbackIcon: { fontSize: 32, opacity: 0.7 },
   popularName: { fontSize: 13, fontWeight: '600', color: COLORS.text, lineHeight: 18, paddingHorizontal: 10, paddingTop: 8 },
   popularPrice: { fontSize: 13, fontWeight: '700', color: COLORS.primary, paddingHorizontal: 10, paddingBottom: 10, marginTop: 4 },
+  popularTextSkeletons: { paddingHorizontal: 10, paddingTop: 10, paddingBottom: 12 },
   footer: { alignItems: 'center', marginTop: 32, marginBottom: 8 },
   footerText: { fontSize: 12, color: COLORS.textMuted, letterSpacing: 1 },
   cartBar: { position: 'absolute', bottom: 12, left: 20, right: 20, backgroundColor: COLORS.primary, borderRadius: RADIUS.lg, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, shadowColor: COLORS.primary, shadowOpacity: 0.5, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 8 },
