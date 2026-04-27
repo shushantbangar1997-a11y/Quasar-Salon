@@ -77,6 +77,10 @@ This means the `Start Backend` workflow must be running for any API call to succ
 Troubleshooting:
 - **App loads but Sign In / Cart / Booking calls fail**: confirm the `Start Backend` workflow is running, and verify `curl https://$REPLIT_DEV_DOMAIN/api/staff` returns JSON from the backend (not the Replit placeholder HTML). If you see HTML, the Metro middleware in `mobile/metro.config.js` is broken or backend isn't on `localhost:8080`.
 - **QR opens "HTTP 502" in Expo Go**: confirm Replit didn't change the port mapping (5000 must map to external 80) and that the workflow's fail-fast guard didn't trip on a missing `REPLIT_DEV_DOMAIN`.
+- **Replit dev domain / proxy stops behaving as expected**: as a fallback, change the `Start application` command to `npx expo start --tunnel --port 5000` (drops the `EXPO_PACKAGER_PROXY_URL` / `REACT_NATIVE_PACKAGER_HOSTNAME` overrides). Tunnel mode requires the bundled ngrok service to be healthy; if ngrok itself is down (`Cannot read properties of undefined (reading 'body')` style errors), the env-var workflow above is the only reliable path until ngrok recovers.
+
+### Port mapping notes
+Only `localPort 5000 -> externalPort 80` and `localPort 8080 -> externalPort 8080` are declared in `.replit`. The `8080` entry exists because the `Start Backend` workflow has `waitForPort = 8080` (so Replit re-asserts it on every restart), but the public `https://8080-<repl-domain>` URL is intentionally NOT used by the app — Replit only routes one external HTTPS port reliably here, so the Metro `/api` proxy (above) is what the app uses. Port 8081 (Metro's traditional default) is intentionally not declared, because `expo start --web --port 5000` makes Metro bind to 5000 and the Replit Expo proxy at `<repl>.expo.sisko.replit.dev` is not on the hot path.
 
 ## Backend deployment (Replit)
 
