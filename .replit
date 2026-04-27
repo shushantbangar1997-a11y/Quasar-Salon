@@ -83,6 +83,10 @@ externalPort = 80
 localPort = 5001
 externalPort = 3000
 
+[[ports]]
+localPort = 8080
+externalPort = 8080
+
 [deployment]
 deploymentTarget = "static"
 build = ["sh", "-c", "cd mobile && npx expo export --platform web --output-dir dist"]
