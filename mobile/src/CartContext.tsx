@@ -82,16 +82,16 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const addItem = useCallback(
     (service: QuasarService, category: QuasarCategory) => {
-      addItemForGuest(service, category, activeGuestId);
+      addItemForGuest(service, category, SELF_GUEST_ID);
     },
-    [activeGuestId, addItemForGuest]
+    [addItemForGuest]
   );
 
   const removeItem = useCallback(
     (serviceId: string) => {
-      removeItemForGuest(serviceId, activeGuestId);
+      removeItemForGuest(serviceId, SELF_GUEST_ID);
     },
-    [activeGuestId, removeItemForGuest]
+    [removeItemForGuest]
   );
 
   const addGuest = useCallback((name: string): string => {

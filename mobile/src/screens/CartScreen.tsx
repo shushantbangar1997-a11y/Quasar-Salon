@@ -19,8 +19,6 @@ export default function CartScreen({ navigation }: CartScreenProps) {
   const [showAddFriend, setShowAddFriend] = useState(false);
   const [friendName, setFriendName] = useState('');
 
-  const hasAnyItem = totalItems > 0;
-
   const handleAddFriend = () => {
     const name = friendName.trim();
     if (!name) return;
@@ -28,31 +26,6 @@ export default function CartScreen({ navigation }: CartScreenProps) {
     setFriendName('');
     setShowAddFriend(false);
   };
-
-  if (!hasAnyItem) {
-    return (
-      <SafeAreaView style={s.safe}>
-        <StatusBar barStyle="dark-content" backgroundColor={COLORS.bg} />
-        <View style={s.header}>
-          <Pressable onPress={() => navigation.goBack()} hitSlop={10}>
-            <Ionicons name="arrow-back" size={22} color={COLORS.primary} />
-          </Pressable>
-          <Text style={s.title}>Your Cart</Text>
-        </View>
-        <View style={s.empty}>
-          <Ionicons name="cart-outline" size={64} color={COLORS.textMuted} />
-          <Text style={s.emptyTitle}>Your cart is empty</Text>
-          <Text style={s.emptyText}>Browse our services and add them here</Text>
-          <Pressable
-            style={s.browseBtn}
-            onPress={() => navigation.navigate('MainTabs', { screen: 'Home' })}
-          >
-            <Text style={s.browseBtnText}>Browse Services</Text>
-          </Pressable>
-        </View>
-      </SafeAreaView>
-    );
-  }
 
   const grandTotal = guests.reduce(
     (sum, g) => sum + g.items.reduce((s, i) => s + i.service.price * i.qty, 0),
@@ -68,9 +41,11 @@ export default function CartScreen({ navigation }: CartScreenProps) {
           <Ionicons name="arrow-back" size={22} color={COLORS.primary} />
         </Pressable>
         <Text style={s.title}>Your Cart</Text>
-        <Pressable onPress={clearCart} hitSlop={10}>
-          <Text style={s.clearText}>Clear all</Text>
-        </Pressable>
+        {totalItems > 0 && (
+          <Pressable onPress={clearCart} hitSlop={10}>
+            <Text style={s.clearText}>Clear all</Text>
+          </Pressable>
+        )}
       </View>
 
       <ScrollView
@@ -95,8 +70,23 @@ export default function CartScreen({ navigation }: CartScreenProps) {
           <Text style={s.addFriendText}>Add a Friend</Text>
         </Pressable>
 
-        {/* Price details */}
-        <View style={s.priceBox}>
+        {/* Empty nudge when no services yet */}
+        {totalItems === 0 && (
+          <View style={s.emptyNudge}>
+            <Ionicons name="sparkles-outline" size={28} color={COLORS.primary} />
+            <Text style={s.emptyNudgeTitle}>No services added yet</Text>
+            <Text style={s.emptyNudgeText}>Browse our menu and add services for each guest.</Text>
+            <Pressable
+              style={s.browseBtn}
+              onPress={() => navigation.navigate('MainTabs', { screen: 'Search' })}
+            >
+              <Text style={s.browseBtnText}>Browse Services</Text>
+            </Pressable>
+          </View>
+        )}
+
+        {/* Price details (only when there are items) */}
+        {totalItems > 0 && <View style={s.priceBox}>
           <Text style={s.priceBoxTitle}>Price Details</Text>
 
           {guests.map(guest => {
@@ -135,7 +125,7 @@ export default function CartScreen({ navigation }: CartScreenProps) {
               ₹{grandTotal.toLocaleString('en-IN')}
             </Text>
           </View>
-        </View>
+        </View>}
       </ScrollView>
 
       {/* Footer */}
@@ -146,7 +136,11 @@ export default function CartScreen({ navigation }: CartScreenProps) {
             {totalItems} service{totalItems > 1 ? 's' : ''} · {guests.length} guest{guests.length > 1 ? 's' : ''}
           </Text>
         </View>
-        <Pressable style={s.bookBtn} onPress={() => navigation.navigate('Booking')}>
+        <Pressable
+          style={[s.bookBtn, totalItems === 0 && s.bookBtnDisabled]}
+          disabled={totalItems === 0}
+          onPress={() => navigation.navigate('Booking')}
+        >
           <Text style={s.bookBtnText}>Book →</Text>
         </Pressable>
       </View>
@@ -280,17 +274,26 @@ const s = StyleSheet.create({
   title: { flex: 1, fontSize: 20, fontWeight: '800', color: COLORS.text },
   clearText: { fontSize: 14, color: COLORS.error, fontWeight: '600' },
 
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40, gap: 12 },
-  emptyTitle: { fontSize: 22, fontWeight: '700', color: COLORS.text },
-  emptyText: { fontSize: 14, color: COLORS.textSecondary, textAlign: 'center' },
+  emptyNudge: {
+    alignItems: 'center',
+    backgroundColor: COLORS.bgCard,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    padding: 24,
+    marginBottom: 16,
+    gap: 8,
+  },
+  emptyNudgeTitle: { fontSize: 16, fontWeight: '700', color: COLORS.text },
+  emptyNudgeText: { fontSize: 13, color: COLORS.textSecondary, textAlign: 'center' },
   browseBtn: {
-    marginTop: 16,
+    marginTop: 8,
     backgroundColor: COLORS.primary,
-    paddingHorizontal: 28,
-    paddingVertical: 14,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
     borderRadius: RADIUS.lg,
   },
-  browseBtnText: { color: COLORS.bg, fontWeight: '700', fontSize: 15 },
+  browseBtnText: { color: COLORS.bg, fontWeight: '700', fontSize: 14 },
 
   /* Guest section */
   guestSection: {
@@ -416,6 +419,7 @@ const s = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: RADIUS.lg,
   },
+  bookBtnDisabled: { backgroundColor: COLORS.bgElevated },
   bookBtnText: { color: COLORS.bg, fontWeight: '800', fontSize: 15 },
 
   /* Add friend modal */

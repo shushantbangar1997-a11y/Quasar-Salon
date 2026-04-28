@@ -34,7 +34,7 @@ function buildSearchResults(query: string, catId: string | null): SearchResult[]
 export default function SearchScreen({ navigation }: SearchScreenProps) {
   const [query, setQuery] = useState('');
   const [activeCatId, setActiveCatId] = useState<string | null>(null);
-  const { addItem, removeItem, items, totalItems, totalPrice, guests, activeGuestId, setActiveGuestId } = useCart();
+  const { addItemForGuest, removeItemForGuest, items, totalItems, totalPrice, guests, activeGuestId, setActiveGuestId } = useCart();
 
   const getQty = (svcId: string) => items.find(i => i.service.id === svcId)?.qty ?? 0;
 
@@ -197,8 +197,8 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
                   service={service}
                   cat={cat}
                   qty={qty}
-                  onAdd={() => addItem(service, cat)}
-                  onRemove={() => removeItem(service.id)}
+                  onAdd={() => addItemForGuest(service, cat, activeGuestId)}
+                  onRemove={() => removeItemForGuest(service.id, activeGuestId)}
                   onCatPress={() => handleCatChip(cat.id)}
                 />
               );
