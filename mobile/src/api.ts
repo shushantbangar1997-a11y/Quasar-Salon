@@ -1,17 +1,8 @@
 import { auth } from './firebase';
 import { StaffMember } from './quasarData';
-import { CartItem } from './CartContext';
+import { CartItem, Guest } from './CartContext';
 
 function resolveApiBaseUrl(): string {
-  // The backend is reached through the Expo dev server's `/api/*` proxy
-  // (see mobile/metro.config.js). This works for both the browser preview
-  // and native Expo Go because Replit only routes one external port.
-  //
-  // - Web (browser): use a relative URL (same-origin fetch goes back to
-  //   the dev server, which proxies /api/* to the backend).
-  // - Native (Expo Go on phone): EXPO_PUBLIC_API_BASE_URL is baked into
-  //   the bundle and points at the public Expo dev server URL, where the
-  //   same /api proxy applies.
   const envUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
   if (envUrl) return `${envUrl.replace(/\/$/, '')}/api`;
   if (typeof window !== 'undefined') return '/api';
@@ -104,18 +95,24 @@ export async function fetchStaffSlots(staffId: string, date: string, duration?: 
   return data as SlotAvailability;
 }
 
+export interface QuasarServicePayloadItem {
+  id: string;
+  name: string;
+  price: number;
+  durationMins: number;
+  category: string;
+  qty: number;
+}
+
 export interface QuasarBookingPayload {
   staffId: string;
   timeSlot: string;
   date: string;
   dateLabel: string;
-  services: Array<{
-    id: string;
+  services: QuasarServicePayloadItem[];
+  guests: Array<{
     name: string;
-    price: number;
-    durationMins: number;
-    category: string;
-    qty: number;
+    services: QuasarServicePayloadItem[];
   }>;
   total: number;
 }
@@ -136,28 +133,42 @@ export async function createQuasarBooking(payload: QuasarBookingPayload): Promis
   return result as QuasarBookingResult;
 }
 
-/** Build the payload from cart items + booking details. */
+function cartItemToPayloadItem(item: CartItem): QuasarServicePayloadItem {
+  return {
+    id: item.service.id,
+    name: item.service.name,
+    price: item.service.price,
+    durationMins: item.service.durationMins,
+    category: item.category.name,
+    qty: item.qty,
+  };
+}
+
+/** Build the payload from cart guests + booking details. */
 export function buildQuasarBookingPayload(
-  items: CartItem[],
+  guests: Guest[],
   staffId: string,
   timeSlot: string,
   dateIso: string,
   dateLabel: string,
   total: number
 ): QuasarBookingPayload {
+  const guestsPayload = guests
+    .filter(g => g.items.length > 0)
+    .map(g => ({
+      name: g.name,
+      services: g.items.map(cartItemToPayloadItem),
+    }));
+
+  const allServices = guests.flatMap(g => g.items).map(cartItemToPayloadItem);
+
   return {
     staffId,
     timeSlot,
     date: dateIso,
     dateLabel,
-    services: items.map(item => ({
-      id: item.service.id,
-      name: item.service.name,
-      price: item.service.price,
-      durationMins: item.service.durationMins,
-      category: item.category.name,
-      qty: item.qty,
-    })),
+    services: allServices,
+    guests: guestsPayload,
     total,
   };
 }

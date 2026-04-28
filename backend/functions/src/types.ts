@@ -117,6 +117,7 @@ export interface QuasarBooking {
   date: string;        // ISO: YYYY-MM-DD
   dateLabel: string;   // Human-readable: "Mon, Apr 28"
   services: QuasarServiceItem[];
+  guests?: QuasarBookingGuest[];
   total: number;
   status: BookingStatus;
   createdAt?: unknown;
@@ -154,12 +155,18 @@ export interface CreateBookingRequest {
   notes?: string;
 }
 
+export interface QuasarBookingGuest {
+  name: string;
+  services: QuasarServiceItem[];
+}
+
 export interface CreateQuasarBookingRequest {
   staffId: string;
   timeSlot: string;
   date: string;
   dateLabel: string;
   services: QuasarServiceItem[];
+  guests?: QuasarBookingGuest[];
   total: number;
 }
 

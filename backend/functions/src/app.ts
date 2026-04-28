@@ -9,6 +9,7 @@ import {
   CreateQuasarBookingRequest,
   FavouritesRequest,
   Provider,
+  QuasarBookingGuest,
   QuasarStaff,
   UpsertProviderRequest,
   UpdateBookingStatusRequest,
@@ -586,6 +587,13 @@ app.post('/bookings', authenticateUser, async (req, res) => {
           });
         }
 
+        const validatedGuests: QuasarBookingGuest[] | undefined =
+          Array.isArray(quasarBody.guests) && quasarBody.guests.length > 0
+            ? quasarBody.guests.filter(
+                g => isNonEmptyString(g.name) && Array.isArray(g.services)
+              )
+            : undefined;
+
         tx.set(bookingRef, {
           userId: uid,
           staffId,
@@ -593,6 +601,7 @@ app.post('/bookings', authenticateUser, async (req, res) => {
           date: dateStr,
           dateLabel: quasarBody.dateLabel.trim(),
           services: quasarBody.services,
+          ...(validatedGuests ? { guests: validatedGuests } : {}),
           total,
           totalDuration,
           slotsBlocked: slotsToBlock,

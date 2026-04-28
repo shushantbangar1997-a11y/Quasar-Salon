@@ -34,7 +34,7 @@ function buildSearchResults(query: string, catId: string | null): SearchResult[]
 export default function SearchScreen({ navigation }: SearchScreenProps) {
   const [query, setQuery] = useState('');
   const [activeCatId, setActiveCatId] = useState<string | null>(null);
-  const { addItem, removeItem, items, totalItems, totalPrice } = useCart();
+  const { addItem, removeItem, items, totalItems, totalPrice, guests, activeGuestId, setActiveGuestId } = useCart();
 
   const getQty = (svcId: string) => items.find(i => i.service.id === svcId)?.qty ?? 0;
 
@@ -123,6 +123,30 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
             </Pressable>
           ))}
         </ScrollView>
+      )}
+
+      {/* ── Guest selector (shown when multiple guests exist) ── */}
+      {guests.length > 1 && (
+        <View style={s.guestBarWrap}>
+          <Text style={s.guestBarLabel}>For:</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={s.guestBarContent}
+          >
+            {guests.map(g => (
+              <Pressable
+                key={g.id}
+                style={[s.guestPill, activeGuestId === g.id && s.guestPillActive]}
+                onPress={() => setActiveGuestId(g.id)}
+              >
+                <Text style={[s.guestPillText, activeGuestId === g.id && s.guestPillTextActive]}>
+                  {g.name}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        </View>
       )}
 
       {showTiles ? (
@@ -463,6 +487,30 @@ const s = StyleSheet.create({
   },
   qtyBtnText: { color: COLORS.bg, fontSize: 18, fontWeight: '800', lineHeight: 22 },
   qtyNum: { fontSize: 14, fontWeight: '800', color: COLORS.text, minWidth: 20, textAlign: 'center' },
+
+  guestBarWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: COLORS.bg,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+    gap: 8,
+  },
+  guestBarLabel: { fontSize: 12, fontWeight: '700', color: COLORS.textMuted },
+  guestBarContent: { gap: 6, alignItems: 'center' },
+  guestPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.bgElevated,
+  },
+  guestPillActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  guestPillText: { fontSize: 12, fontWeight: '600', color: COLORS.textSecondary },
+  guestPillTextActive: { color: COLORS.bg },
 
   empty: { alignItems: 'center', paddingTop: 60, gap: 10 },
   emptyTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text },

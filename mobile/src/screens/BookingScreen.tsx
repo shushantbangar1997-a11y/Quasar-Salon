@@ -22,7 +22,8 @@ import { Skeleton, SkeletonImage } from '../components/Skeleton';
 type Step = 'date' | 'stylist' | 'confirm';
 
 export default function BookingScreen({ navigation, route }: BookingScreenProps) {
-  const { items, totalPrice, clearCart } = useCart();
+  const { guests, totalPrice, clearCart } = useCart();
+  const allItems = guests.flatMap(g => g.items);
   const { addBooking } = useBookings();
 
   const reschedule = route?.params?.reschedule;
@@ -52,7 +53,7 @@ export default function BookingScreen({ navigation, route }: BookingScreenProps)
   const [slotsLoading, setSlotsLoading] = useState(false);
 
   const apiAvailable = Boolean(API_BASE_URL);
-  const totalDuration = items.reduce((sum, item) => sum + item.service.durationMins * item.qty, 0);
+  const totalDuration = allItems.reduce((sum, item) => sum + item.service.durationMins * item.qty, 0);
 
   /** Fetch slots for ALL staff when advancing to time step, honoring total service duration */
   const fetchSlotsForDate = useCallback(async (dateIso: string) => {
@@ -99,7 +100,7 @@ export default function BookingScreen({ navigation, route }: BookingScreenProps)
 
   /** Confirm booking — use API when available, local state only when API is not configured */
   const handleConfirm = async () => {
-    if (items.length === 0) {
+    if (allItems.length === 0) {
       setErrorMsg('Your cart is empty. Please add services before booking.');
       return;
     }
@@ -120,7 +121,7 @@ export default function BookingScreen({ navigation, route }: BookingScreenProps)
         }
 
         const payload = buildQuasarBookingPayload(
-          items,
+          guests,
           selectedStylist!.id,
           selectedTime,
           selectedDate!.iso,
@@ -131,7 +132,7 @@ export default function BookingScreen({ navigation, route }: BookingScreenProps)
 
         const booking = {
           id: result.id,
-          services: items,
+          services: allItems,
           date: selectedDate?.label ?? '',
           time: selectedTime,
           stylist: selectedStylist,
@@ -165,7 +166,7 @@ export default function BookingScreen({ navigation, route }: BookingScreenProps)
     try {
       await new Promise<void>(r => setTimeout(r, 600));
 
-      const serviceSnapshot = items.map(i => ({
+      const serviceSnapshot = allItems.map(i => ({
         service: {
           id: i.service.id,
           name: i.service.name,
@@ -247,11 +248,12 @@ export default function BookingScreen({ navigation, route }: BookingScreenProps)
 
         <View style={s.serviceStrip}>
           <Text style={s.serviceStripTitle}>
-            {items.length} service{items.length > 1 ? 's' : ''} · ₹{totalPrice.toLocaleString('en-IN')}
+            {allItems.length} service{allItems.length > 1 ? 's' : ''}
+            {guests.length > 1 ? ` · ${guests.length} guests` : ''} · ₹{totalPrice.toLocaleString('en-IN')}
           </Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {items.map(item => (
-              <View key={item.service.id} style={s.serviceTag}>
+            {allItems.map((item, idx) => (
+              <View key={`${item.service.id}-${idx}`} style={s.serviceTag}>
                 <Text style={s.serviceTagText} numberOfLines={1}>{item.service.name}</Text>
               </View>
             ))}
@@ -310,13 +312,20 @@ export default function BookingScreen({ navigation, route }: BookingScreenProps)
               <SumRow label="Time" value={selectedTime} />
               <SumRow label="Stylist" value={selectedStylist?.name ?? 'Any Available'} />
               <View style={s.divider} />
-              {items.map(item => (
-                <View key={item.service.id} style={s.sumSvcRow}>
-                  <Text style={s.sumSvcName} numberOfLines={2}>
-                    {item.qty > 1 ? `${item.qty}× ` : ''}{item.service.name}
-                  </Text>
-                  <Text style={s.sumSvcPrice}>₹{(item.service.price * item.qty).toLocaleString('en-IN')}</Text>
-                </View>
+              {guests.filter(g => g.items.length > 0).map((g, gi) => (
+                <React.Fragment key={g.id}>
+                  {guests.filter(x => x.items.length > 0).length > 1 && (
+                    <Text style={s.sumGuestLabel}>{g.name}</Text>
+                  )}
+                  {g.items.map(item => (
+                    <View key={`${gi}-${item.service.id}`} style={s.sumSvcRow}>
+                      <Text style={s.sumSvcName} numberOfLines={2}>
+                        {item.qty > 1 ? `${item.qty}× ` : ''}{item.service.name}
+                      </Text>
+                      <Text style={s.sumSvcPrice}>₹{(item.service.price * item.qty).toLocaleString('en-IN')}</Text>
+                    </View>
+                  ))}
+                </React.Fragment>
               ))}
               <View style={s.divider} />
               <View style={s.totalRow}>
@@ -515,6 +524,15 @@ const s = StyleSheet.create({
   sumValue: { fontSize: 14, fontWeight: '600', color: COLORS.text },
   divider: { height: 1, backgroundColor: COLORS.border, marginVertical: 10 },
   sumSvcRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 },
+  sumGuestLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+    marginTop: 8,
+  },
   sumSvcName: { fontSize: 13, color: COLORS.text, flex: 1, marginRight: 10 },
   sumSvcPrice: { fontSize: 13, fontWeight: '600', color: COLORS.primary },
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 4 },
