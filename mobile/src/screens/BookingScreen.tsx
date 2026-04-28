@@ -252,7 +252,7 @@ export default function BookingScreen({ navigation, route }: BookingScreenProps)
         <View style={s.serviceStrip}>
           <Text style={s.serviceStripTitle}>
             {allItems.length} service{allItems.length > 1 ? 's' : ''}
-            {guests.length > 1 ? ` · ${guests.length} guests` : ''} · ₹{totalPrice.toLocaleString('en-IN')}
+            {isMultiGuest ? ` · ${guestsWithItems.length} guests` : ''} · ₹{totalPrice.toLocaleString('en-IN')}
           </Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {allItems.map((item, idx) => (
