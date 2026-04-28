@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import {
   View, Text, TextInput, ScrollView, Pressable,
   StyleSheet, SafeAreaView, StatusBar, Image, Platform,
+  ImageSourcePropType,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { QUASAR_CATEGORIES, QuasarCategory, QuasarService } from '../quasarData';
@@ -46,7 +47,7 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
     ? buildSearchResults(query, isSearching ? null : activeCatId)
     : [];
 
-  const handleClearSearch = useCallback(() => setQuery(''), []);
+  const handleClearSearch = useCallback(() => { setQuery(''); setActiveCatId(null); }, []);
   const handleCatTile     = useCallback((catId: string) => {
     setActiveCatId(catId);
     setQuery('');
@@ -198,10 +199,11 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
 
 /* ─────────── Category tile ─────────── */
 function CategoryTile({ cat, onPress }: { cat: QuasarCategory; onPress: () => void }) {
-  const src = typeof cat.imageUrl === 'string' ? { uri: cat.imageUrl } : cat.imageUrl;
+  const src: ImageSourcePropType =
+    typeof cat.imageUrl === 'string' ? { uri: cat.imageUrl } : (cat.imageUrl as ImageSourcePropType);
   return (
     <Pressable style={s.tile} onPress={onPress} android_ripple={{ color: 'rgba(255,255,255,0.15)' }}>
-      <Image source={src as any} style={s.tileImage} resizeMode="cover" />
+      <Image source={src} style={s.tileImage} resizeMode="cover" />
       <View style={s.tileOverlay} />
       <View style={s.tileLabelRow}>
         <Text style={s.tileName}>{cat.name}</Text>
