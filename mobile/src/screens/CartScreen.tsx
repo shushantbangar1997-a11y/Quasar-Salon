@@ -57,7 +57,7 @@ export default function CartScreen({ navigation }: CartScreenProps) {
           <GuestSection
             key={guest.id}
             guest={guest}
-            isFirst={idx === 0}
+            isSelf={guest.id === SELF_GUEST_ID}
             onRemoveGuest={() => removeGuest(guest.id)}
             onAddItem={(svc, cat) => addItemForGuest(svc, cat, guest.id)}
             onRemoveItem={svcId => removeItemForGuest(svcId, guest.id)}
@@ -197,13 +197,13 @@ export default function CartScreen({ navigation }: CartScreenProps) {
 /* ── Per-guest section ── */
 function GuestSection({
   guest,
-  isFirst,
+  isSelf,
   onRemoveGuest,
   onAddItem,
   onRemoveItem,
 }: {
   guest: Guest;
-  isFirst: boolean;
+  isSelf: boolean;
   onRemoveGuest: () => void;
   onAddItem: (svc: CartItem['service'], cat: CartItem['category']) => void;
   onRemoveItem: (svcId: string) => void;
@@ -214,13 +214,13 @@ function GuestSection({
       <View style={s.guestHeader}>
         <View style={s.guestAvatarWrap}>
           <Ionicons
-            name={isFirst ? 'person' : 'person-outline'}
+            name={isSelf ? 'person' : 'person-outline'}
             size={14}
-            color={isFirst ? COLORS.bg : COLORS.primary}
+            color={isSelf ? COLORS.bg : COLORS.primary}
           />
         </View>
         <Text style={s.guestName}>{guest.name}</Text>
-        {!isFirst && (
+        {!isSelf && (
           <Pressable onPress={onRemoveGuest} hitSlop={12} style={s.removeGuestBtn}>
             <Ionicons name="close" size={16} color={COLORS.textMuted} />
           </Pressable>

@@ -216,6 +216,9 @@ export default function BookingScreen({ navigation, route }: BookingScreenProps)
     setStep(STEPS[stepIdx - 1].key);
   };
 
+  const guestsWithItems = guests.filter(g => g.items.length > 0);
+  const isMultiGuest = guestsWithItems.length > 1;
+
   return (
     <SafeAreaView style={s.safe}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.bg} />
@@ -312,9 +315,9 @@ export default function BookingScreen({ navigation, route }: BookingScreenProps)
               <SumRow label="Time" value={selectedTime} />
               <SumRow label="Stylist" value={selectedStylist?.name ?? 'Any Available'} />
               <View style={s.divider} />
-              {guests.filter(g => g.items.length > 0).map((g, gi) => (
+              {guestsWithItems.map((g, gi) => (
                 <React.Fragment key={g.id}>
-                  {guests.filter(x => x.items.length > 0).length > 1 && (
+                  {isMultiGuest && (
                     <Text style={s.sumGuestLabel}>{g.name}</Text>
                   )}
                   {g.items.map(item => (

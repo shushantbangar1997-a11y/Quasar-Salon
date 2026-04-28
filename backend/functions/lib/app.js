@@ -538,20 +538,12 @@ exports.app.post('/bookings', authenticateUser, async (req, res) => {
                         createdAt: admin.firestore.FieldValue.serverTimestamp(),
                     });
                 }
-                tx.set(bookingRef, {
-                    userId: uid,
-                    staffId,
-                    timeSlot,
-                    date: dateStr,
-                    dateLabel: quasarBody.dateLabel.trim(),
-                    services: quasarBody.services,
-                    total,
-                    totalDuration,
-                    slotsBlocked: slotsToBlock,
-                    status: 'pending',
-                    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-                });
+                const validatedGuests = Array.isArray(quasarBody.guests) && quasarBody.guests.length > 0
+                    ? quasarBody.guests.filter(g => isNonEmptyString(g.name) && Array.isArray(g.services))
+                    : undefined;
+                tx.set(bookingRef, Object.assign(Object.assign({ userId: uid, staffId,
+                    timeSlot, date: dateStr, dateLabel: quasarBody.dateLabel.trim(), services: quasarBody.services }, (validatedGuests ? { guests: validatedGuests } : {})), { total,
+                    totalDuration, slotsBlocked: slotsToBlock, status: 'pending', createdAt: admin.firestore.FieldValue.serverTimestamp(), updatedAt: admin.firestore.FieldValue.serverTimestamp() }));
             });
             const created = await bookingRef.get();
             res.status(201).json(Object.assign({ id: created.id }, created.data()));
