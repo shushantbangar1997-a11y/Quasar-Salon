@@ -1,49 +1,66 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View, Text, TextInput, ScrollView, Pressable,
-  StyleSheet, SafeAreaView, StatusBar, Image,
+  StyleSheet, SafeAreaView, StatusBar, Image, Platform,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { QUASAR_CATEGORIES, QuasarCategory, QuasarService } from '../quasarData';
 import { useCart } from '../CartContext';
 import { COLORS, RADIUS } from '../theme';
 import { SearchScreenProps } from '../navigation';
-import { Skeleton, SkeletonImage, isRemoteImageSource } from '../components/Skeleton';
 
+/* ─────────── helpers ─────────── */
 interface SearchResult {
   service: QuasarService;
-  catId: string;
-  catName: string;
-  catIcon: string;
+  cat: QuasarCategory;
 }
 
-export default function SearchScreen({ navigation }: SearchScreenProps) {
-  const [query, setQuery] = useState('');
-  const [activeCategory, setActiveCategory] = useState('All');
-  const { addItem, removeItem, items, totalItems, totalPrice } = useCart();
-
-  const getQty = (svcId: string) => items.find(i => i.service.id === svcId)?.qty || 0;
-
-  const allCategories = ['All', ...QUASAR_CATEGORIES.map(c => c.name)];
-
+function buildSearchResults(query: string, catId: string | null): SearchResult[] {
   const results: SearchResult[] = [];
   for (const cat of QUASAR_CATEGORIES) {
-    const matchCat = activeCategory === 'All' || cat.name === activeCategory;
-    if (!matchCat) continue;
+    if (catId && cat.id !== catId) continue;
     for (const svc of cat.services) {
-      const q = query.toLowerCase();
+      const q = query.toLowerCase().trim();
       if (!q || svc.name.toLowerCase().includes(q) || cat.name.toLowerCase().includes(q)) {
-        results.push({ service: svc, catId: cat.id, catName: cat.name, catIcon: cat.icon });
+        results.push({ service: svc, cat });
       }
     }
   }
+  return results;
+}
 
-  const catForId = (catId: string) => QUASAR_CATEGORIES.find(c => c.id === catId)!;
+/* ─────────── Main screen ─────────── */
+export default function SearchScreen({ navigation }: SearchScreenProps) {
+  const [query, setQuery] = useState('');
+  const [activeCatId, setActiveCatId] = useState<string | null>(null);
+  const { addItem, removeItem, items, totalItems, totalPrice } = useCart();
+
+  const getQty = (svcId: string) => items.find(i => i.service.id === svcId)?.qty ?? 0;
+
+  const isSearching = query.trim().length > 0;
+  const showTiles   = !isSearching && activeCatId === null;
+
+  const activeCat = activeCatId ? QUASAR_CATEGORIES.find(c => c.id === activeCatId) ?? null : null;
+
+  const filteredResults = isSearching || activeCatId
+    ? buildSearchResults(query, isSearching ? null : activeCatId)
+    : [];
+
+  const handleClearSearch = useCallback(() => setQuery(''), []);
+  const handleCatTile     = useCallback((catId: string) => {
+    setActiveCatId(catId);
+    setQuery('');
+  }, []);
+  const handleCatChip     = useCallback((catId: string | null) => {
+    setActiveCatId(catId);
+    setQuery('');
+  }, []);
 
   return (
     <SafeAreaView style={s.safe}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.bg} />
 
-      {/* Brand header */}
+      {/* ── Header ── */}
       <View style={s.header}>
         <View style={s.logoRow}>
           <Image
@@ -53,94 +70,124 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
           />
           <View>
             <Text style={s.logoTagline}>Luxury Salon</Text>
-            <Text style={s.logoSub}>Explore services</Text>
+            <Text style={s.logoSub}>Browse Services</Text>
           </View>
         </View>
       </View>
 
-      {/* Search + category chips on one row */}
-      <View style={s.searchRow}>
+      {/* ── Search bar ── */}
+      <View style={s.searchWrap}>
         <View style={s.searchBox}>
-          <Text style={s.searchIcon}>🔍</Text>
+          <Ionicons name="search" size={16} color={COLORS.textMuted} style={s.searchIcon} />
           <TextInput
-            style={s.input}
-            placeholder="Search…"
+            style={s.searchInput}
+            placeholder="Search services…"
             placeholderTextColor={COLORS.textMuted}
             value={query}
             onChangeText={setQuery}
+            returnKeyType="search"
           />
           {query.length > 0 && (
-            <Pressable onPress={() => setQuery('')} hitSlop={8}>
-              <Text style={s.clearBtn}>✕</Text>
+            <Pressable onPress={handleClearSearch} hitSlop={10}>
+              <Ionicons name="close-circle" size={17} color={COLORS.textMuted} />
             </Pressable>
           )}
         </View>
+      </View>
 
-        <View style={s.divider} />
-
+      {/* ── Category tab chips (shown when drilled into a category or searching) ── */}
+      {!showTiles && (
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={s.catContent}
-          style={s.catScroll}
+          style={s.chipScroll}
+          contentContainerStyle={s.chipContent}
         >
-          {allCategories.map(cat => (
+          <Pressable
+            style={[s.chip, activeCatId === null && s.chipActive]}
+            onPress={() => handleCatChip(null)}
+          >
+            <Text style={[s.chipText, activeCatId === null && s.chipTextActive]}>All</Text>
+          </Pressable>
+
+          {QUASAR_CATEGORIES.map(cat => (
             <Pressable
-              key={cat}
-              onPress={() => setActiveCategory(cat)}
-              style={[s.catChip, activeCategory === cat && s.catChipActive]}
+              key={cat.id}
+              style={[s.chip, activeCatId === cat.id && !isSearching && s.chipActive]}
+              onPress={() => handleCatChip(cat.id)}
             >
-              <Text style={[s.catText, activeCategory === cat && s.catTextActive]}>{cat}</Text>
+              <Text style={[s.chipText, activeCatId === cat.id && !isSearching && s.chipTextActive]}>
+                {cat.name}
+              </Text>
             </Pressable>
           ))}
         </ScrollView>
-      </View>
+      )}
 
-      {/* Result count */}
-      <View style={s.countRow}>
-        <Text style={s.countText}>{results.length} result{results.length !== 1 ? 's' : ''}</Text>
-        {activeCategory !== 'All' && (
-          <Pressable onPress={() => setActiveCategory('All')}>
-            <Text style={s.clearFilter}>Clear ✕</Text>
-          </Pressable>
-        )}
-      </View>
+      {showTiles ? (
+        /* ── TILE VIEW ── */
+        <ScrollView
+          style={{ flex: 1 }}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={s.tilesContainer}
+        >
+          {QUASAR_CATEGORIES.map(cat => (
+            <CategoryTile key={cat.id} cat={cat} onPress={() => handleCatTile(cat.id)} />
+          ))}
+        </ScrollView>
+      ) : (
+        /* ── SERVICE LIST VIEW ── */
+        <ScrollView
+          style={{ flex: 1 }}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[
+            s.listContainer,
+            { paddingBottom: totalItems > 0 ? 110 : 40 },
+          ]}
+        >
+          {!isSearching && activeCat ? (
+            <View style={s.sectionHeader}>
+              <Text style={s.sectionTitle}>{activeCat.name}</Text>
+              <Text style={s.sectionCount}>{filteredResults.length} services</Text>
+            </View>
+          ) : isSearching ? (
+            <View style={s.sectionHeader}>
+              <Text style={s.sectionTitle}>Search results</Text>
+              <Text style={s.sectionCount}>{filteredResults.length} found</Text>
+            </View>
+          ) : null}
 
-      {/* Service list */}
-      <ScrollView
-        style={{ flex: 1 }}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: totalItems > 0 ? 100 : 30 }}
-      >
-        {results.length === 0 ? (
-          <View style={s.empty}>
-            <Text style={{ fontSize: 40 }}>🔍</Text>
-            <Text style={s.emptyTitle}>No results found</Text>
-            <Text style={s.emptyText}>Try a different search or category</Text>
-          </View>
-        ) : (
-          results.map(r => {
-            const qty = getQty(r.service.id);
-            const cat = catForId(r.catId);
-            return (
-              <SearchCard
-                key={r.service.id}
-                service={r.service}
-                cat={cat}
-                catName={r.catName}
-                qty={qty}
-                onAdd={() => addItem(r.service, cat)}
-                onRemove={() => removeItem(r.service.id)}
-                onOpenCategory={() => navigation.navigate('Category', { category: cat })}
-              />
-            );
-          })
-        )}
-      </ScrollView>
+          {filteredResults.length === 0 ? (
+            <View style={s.empty}>
+              <Ionicons name="search-outline" size={42} color={COLORS.textMuted} />
+              <Text style={s.emptyTitle}>No results found</Text>
+              <Text style={s.emptyText}>Try a different search or category</Text>
+            </View>
+          ) : (
+            filteredResults.map(({ service, cat }) => {
+              const qty = getQty(service.id);
+              return (
+                <ServiceRow
+                  key={service.id}
+                  service={service}
+                  cat={cat}
+                  qty={qty}
+                  onAdd={() => addItem(service, cat)}
+                  onRemove={() => removeItem(service.id)}
+                  onCatPress={() => handleCatChip(cat.id)}
+                />
+              );
+            })
+          )}
+        </ScrollView>
+      )}
 
+      {/* ── Cart bar ── */}
       {totalItems > 0 && (
         <Pressable style={s.cartBar} onPress={() => navigation.navigate('Cart')}>
-          <View style={s.cartBadge}><Text style={s.cartBadgeText}>{totalItems}</Text></View>
+          <View style={s.cartBadge}>
+            <Text style={s.cartBadgeText}>{totalItems}</Text>
+          </View>
           <Text style={s.cartBarLabel}>{totalItems} service{totalItems > 1 ? 's' : ''} added</Text>
           <Text style={s.cartBarPrice}>₹{totalPrice.toLocaleString('en-IN')} →</Text>
         </Pressable>
@@ -149,64 +196,64 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
   );
 }
 
-function SearchCard({
+/* ─────────── Category tile ─────────── */
+function CategoryTile({ cat, onPress }: { cat: QuasarCategory; onPress: () => void }) {
+  const src = typeof cat.imageUrl === 'string' ? { uri: cat.imageUrl } : cat.imageUrl;
+  return (
+    <Pressable style={s.tile} onPress={onPress} android_ripple={{ color: 'rgba(255,255,255,0.15)' }}>
+      <Image source={src as any} style={s.tileImage} resizeMode="cover" />
+      <View style={s.tileOverlay} />
+      <View style={s.tileLabelRow}>
+        <Text style={s.tileName}>{cat.name}</Text>
+        <View style={s.tileArrow}>
+          <Ionicons name="chevron-forward" size={16} color="#fff" />
+        </View>
+      </View>
+      <Text style={s.tileCount}>{cat.services.length} services</Text>
+    </Pressable>
+  );
+}
+
+/* ─────────── Service row ─────────── */
+function ServiceRow({
   service,
   cat,
-  catName,
   qty,
   onAdd,
   onRemove,
-  onOpenCategory,
+  onCatPress,
 }: {
   service: QuasarService;
   cat: QuasarCategory;
-  catName: string;
   qty: number;
   onAdd: () => void;
   onRemove: () => void;
-  onOpenCategory: () => void;
+  onCatPress: () => void;
 }) {
-  const src = service.imageUrl ?? cat.imageUrl;
-  const source = typeof src === 'string' ? { uri: src } : src;
-  const remote = isRemoteImageSource(source);
-  const [ready, setReady] = useState(!remote);
-
   return (
-    <View style={s.card}>
-      <SkeletonImage
-        source={source}
-        style={s.svcThumbWrap}
-        resizeMode="cover"
-        radius={RADIUS.md}
-        onLoad={() => setReady(true)}
-        onError={() => setReady(true)}
-        fallback={
-          <View style={s.svcThumbFallback}>
-            <Text style={s.svcThumbFallbackIcon}>{cat.icon}</Text>
+    <View style={s.serviceRow}>
+      <View style={s.serviceInfo}>
+        <Text style={s.serviceName} numberOfLines={2}>{service.name}</Text>
+        <View style={s.serviceMeta}>
+          <View style={s.durationPill}>
+            <Ionicons name="time-outline" size={11} color={COLORS.textMuted} />
+            <Text style={s.durationText}>{service.durationMins} min</Text>
           </View>
-        }
-      />
-      <View style={s.cardMid}>
-        {ready ? (
-          <>
-            <Text style={s.svcName} numberOfLines={2}>{service.name}</Text>
-            <Pressable onPress={onOpenCategory}>
-              <Text style={s.catLabel}>{catName} →</Text>
-            </Pressable>
-            <Text style={s.price}>₹{service.price.toLocaleString('en-IN')}</Text>
-          </>
-        ) : (
-          <>
-            <Skeleton width={140} height={12} radius={4} />
-            <Skeleton width={90} height={10} radius={4} style={{ marginTop: 8 }} />
-            <Skeleton width={70} height={14} radius={4} style={{ marginTop: 8 }} />
-          </>
-        )}
+          {service.note ? (
+            <Text style={s.noteText} numberOfLines={1}>{service.note}</Text>
+          ) : null}
+        </View>
+        <Pressable onPress={onCatPress} hitSlop={6}>
+          <Text style={s.catLabel}>{cat.name}</Text>
+        </Pressable>
       </View>
-      <View style={s.addWrap}>
+
+      <View style={s.serviceRight}>
+        <Text style={s.priceText}>₹{service.price.toLocaleString('en-IN')}</Text>
+
         {qty === 0 ? (
-          <Pressable style={s.addBtn} onPress={onAdd}>
-            <Text style={s.addBtnText}>ADD</Text>
+          <Pressable style={s.bookBtn} onPress={onAdd}>
+            <Text style={s.bookBtnText}>Book</Text>
           </Pressable>
         ) : (
           <View style={s.qtyRow}>
@@ -224,6 +271,7 @@ function SearchCard({
   );
 }
 
+/* ─────────── Styles ─────────── */
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.bg },
 
@@ -250,11 +298,9 @@ const s = StyleSheet.create({
     marginTop: 1,
   },
 
-  searchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingLeft: 14,
-    paddingVertical: 8,
+  searchWrap: {
+    paddingHorizontal: 16,
+    paddingBottom: 10,
     backgroundColor: COLORS.bg,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
@@ -264,98 +310,147 @@ const s = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: COLORS.bgCard,
     borderRadius: RADIUS.lg,
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
+    paddingVertical: Platform.OS === 'ios' ? 10 : 7,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    gap: 8,
+  },
+  searchIcon: { opacity: 0.7 },
+  searchInput: { flex: 1, fontSize: 14, color: COLORS.text, paddingVertical: 0 },
+
+  chipScroll: {
+    flexGrow: 0,
+    backgroundColor: COLORS.bg,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  chipContent: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    gap: 8,
+    alignItems: 'center',
+  },
+  chip: {
+    paddingHorizontal: 14,
     paddingVertical: 7,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    width: 130,
-  },
-  searchIcon: { fontSize: 12, marginRight: 5 },
-  input: { flex: 1, fontSize: 12, color: COLORS.text, paddingVertical: 0 },
-  clearBtn: { color: COLORS.textMuted, fontSize: 12 },
-
-  divider: {
-    width: 1,
-    height: 28,
-    backgroundColor: COLORS.border,
-    marginHorizontal: 10,
-  },
-
-  catScroll: { flex: 1 },
-  catContent: {
-    paddingRight: 14,
-    gap: 6,
-    alignItems: 'center',
-  },
-  catChip: {
-    paddingHorizontal: 11,
-    paddingVertical: 6,
-    borderRadius: RADIUS.md,
+    borderRadius: 999,
     borderWidth: 1,
     borderColor: COLORS.border,
     backgroundColor: COLORS.bgElevated,
   },
-  catChipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
-  catText: { fontSize: 12, color: COLORS.textSecondary, fontWeight: '600' },
-  catTextActive: { color: COLORS.bg },
+  chipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  chipText: { fontSize: 12, fontWeight: '600', color: COLORS.textSecondary },
+  chipTextActive: { color: COLORS.bg },
 
-  countRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  countText: { fontSize: 12, color: COLORS.textMuted },
-  clearFilter: { fontSize: 12, color: COLORS.primary, fontWeight: '600' },
+  tilesContainer: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 110, gap: 12 },
 
-  empty: { alignItems: 'center', paddingTop: 60 },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text, marginTop: 12 },
-  emptyText: { color: COLORS.textSecondary, marginTop: 6 },
-
-  card: {
-    backgroundColor: COLORS.bgCard,
+  tile: {
+    height: 160,
     borderRadius: RADIUS.lg,
-    padding: 14,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  svcThumbWrap: {
-    width: 56,
-    height: 56,
-    borderRadius: RADIUS.md,
     overflow: 'hidden',
-    marginRight: 12,
-    backgroundColor: COLORS.bgElevated,
+    backgroundColor: COLORS.bgCard,
+    position: 'relative',
   },
-  svcThumbFallback: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.bgElevated,
-  },
-  svcThumbFallbackIcon: { fontSize: 24, opacity: 0.7 },
-  svcThumb: {
+  tileImage: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
     width: '100%',
     height: '100%',
   },
-  cardMid: { flex: 1, marginRight: 8 },
-  svcName: { fontSize: 14, fontWeight: '700', color: COLORS.text },
-  catLabel: { fontSize: 12, color: COLORS.primary, marginTop: 3 },
-  price: { fontSize: 15, fontWeight: '800', color: COLORS.primary, marginTop: 6 },
-  addWrap: {},
-  addBtn: {
+  tileOverlay: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  tileLabelRow: {
+    position: 'absolute',
+    bottom: 28,
+    left: 16,
+    right: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  tileName: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: 0.3,
+    textShadowColor: 'rgba(0,0,0,0.6)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+    flex: 1,
+  },
+  tileArrow: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tileCount: {
+    position: 'absolute',
+    bottom: 10,
+    left: 16,
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.75)',
+    fontWeight: '500',
+  },
+
+  listContainer: { paddingHorizontal: 16, paddingTop: 4 },
+
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+  },
+  sectionTitle: { fontSize: 18, fontWeight: '800', color: COLORS.text },
+  sectionCount: { fontSize: 12, color: COLORS.textMuted },
+
+  serviceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.bgCard,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    padding: 14,
+    marginBottom: 10,
+    gap: 12,
+  },
+  serviceInfo: { flex: 1 },
+  serviceName: { fontSize: 14, fontWeight: '700', color: COLORS.text, lineHeight: 20 },
+  serviceMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
+  durationPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: COLORS.bgElevated,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 20,
+  },
+  durationText: { fontSize: 11, color: COLORS.textMuted, fontWeight: '500' },
+  noteText: { fontSize: 11, color: COLORS.textMuted, fontStyle: 'italic', flex: 1 },
+  catLabel: { fontSize: 11, color: COLORS.primary, fontWeight: '600', marginTop: 5 },
+
+  serviceRight: { alignItems: 'flex-end', gap: 8, minWidth: 80 },
+  priceText: { fontSize: 15, fontWeight: '800', color: COLORS.primary },
+
+  bookBtn: {
     borderWidth: 1.5,
     borderColor: COLORS.primary,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 7,
     borderRadius: RADIUS.sm,
+    alignItems: 'center',
   },
-  addBtnText: { color: COLORS.primary, fontWeight: '800', fontSize: 12 },
-  qtyRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  bookBtnText: { color: COLORS.primary, fontWeight: '800', fontSize: 13 },
+
+  qtyRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   qtyBtn: {
     backgroundColor: COLORS.primary,
     width: 28,
@@ -364,8 +459,12 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  qtyBtnText: { color: COLORS.bg, fontSize: 16, fontWeight: '800', lineHeight: 20 },
+  qtyBtnText: { color: COLORS.bg, fontSize: 18, fontWeight: '800', lineHeight: 22 },
   qtyNum: { fontSize: 14, fontWeight: '800', color: COLORS.text, minWidth: 20, textAlign: 'center' },
+
+  empty: { alignItems: 'center', paddingTop: 60, gap: 10 },
+  emptyTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text },
+  emptyText: { fontSize: 13, color: COLORS.textSecondary, textAlign: 'center' },
 
   cartBar: {
     position: 'absolute',

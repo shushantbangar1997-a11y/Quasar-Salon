@@ -23,11 +23,13 @@ function HomeIcon({ color }: { color: string }) {
   );
 }
 
-function SearchIcon({ color }: { color: string }) {
+function ServicesIcon({ color }: { color: string }) {
   return (
     <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-      <Circle cx={10.5} cy={10.5} r={6.5} stroke={color} strokeWidth={1.8} />
-      <Line x1={15.5} y1={15.5} x2={21} y2={21} stroke={color} strokeWidth={1.8} strokeLinecap="round" />
+      <Rect x={3} y={3} width={7.5} height={7.5} rx={1.5} stroke={color} strokeWidth={1.8} />
+      <Rect x={13.5} y={3} width={7.5} height={7.5} rx={1.5} stroke={color} strokeWidth={1.8} />
+      <Rect x={3} y={13.5} width={7.5} height={7.5} rx={1.5} stroke={color} strokeWidth={1.8} />
+      <Rect x={13.5} y={13.5} width={7.5} height={7.5} rx={1.5} stroke={color} strokeWidth={1.8} />
     </Svg>
   );
 }
@@ -52,8 +54,8 @@ function ProfileIcon({ color }: { color: string }) {
   );
 }
 
-const TAB_ICONS = [HomeIcon, SearchIcon, BookingsIcon, ProfileIcon];
-const TAB_LABELS = ['Home', 'Search', 'Bookings', 'Profile'];
+const TAB_ICONS = [HomeIcon, ServicesIcon, BookingsIcon, ProfileIcon];
+const TAB_LABELS = ['Home', 'Services', 'Bookings', 'Profile'];
 
 export default function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
   const indicatorX    = useRef(new Animated.Value(state.index * TAB_W + 5)).current;
