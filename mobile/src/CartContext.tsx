@@ -27,6 +27,7 @@ interface CartContextType {
   removeItem: (serviceId: string) => void;
   items: CartItem[];
   clearCart: () => void;
+  replaceCart: (items: CartItem[], guests?: { name: string; items: CartItem[] }[]) => void;
   totalItems: number;
   totalPrice: number;
 }
@@ -111,6 +112,24 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setActiveGuestId(SELF_GUEST_ID);
   }, []);
 
+  const replaceCart = useCallback(
+    (items: CartItem[], guestList?: { name: string; items: CartItem[] }[]) => {
+      if (guestList && guestList.length > 0) {
+        const self: Guest = { id: SELF_GUEST_ID, name: 'You', items: [...(guestList[0]?.items ?? items)] };
+        const others: Guest[] = guestList.slice(1).map((g, idx) => ({
+          id: `guest-${Date.now()}-${idx}`,
+          name: g.name,
+          items: [...g.items],
+        }));
+        setGuests([self, ...others]);
+      } else {
+        setGuests([{ id: SELF_GUEST_ID, name: 'You', items: [...items] }]);
+      }
+      setActiveGuestId(SELF_GUEST_ID);
+    },
+    []
+  );
+
   const items = guests.find(g => g.id === activeGuestId)?.items ?? [];
   const totalItems = guests.reduce(
     (sum, g) => sum + g.items.reduce((s, i) => s + i.qty, 0),
@@ -135,6 +154,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         removeItem,
         items,
         clearCart,
+        replaceCart,
         totalItems,
         totalPrice,
       }}

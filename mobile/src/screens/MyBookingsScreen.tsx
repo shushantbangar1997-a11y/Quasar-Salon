@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, SafeAreaView, StatusBar, Alert, ActivityIndicator } from 'react-native';
 import { useBookings, ConfirmedBooking } from '../BookingsContext';
+import { useCart } from '../CartContext';
 import { COLORS, RADIUS } from '../theme';
 import { MyBookingsScreenProps } from '../navigation';
 
@@ -13,6 +14,7 @@ const STATUS: Record<string, { bg: string; label: string; color: string }> = {
 
 export default function MyBookingsScreen({ navigation }: MyBookingsScreenProps) {
   const { bookings, cancelBooking } = useBookings();
+  const { totalItems, replaceCart } = useCart();
   const [tab, setTab] = useState<'upcoming' | 'past'>('upcoming');
   const [cancellingId, setCancellingId] = useState<string | null>(null);
 
@@ -46,14 +48,35 @@ export default function MyBookingsScreen({ navigation }: MyBookingsScreenProps) 
   };
 
   const handleReschedule = (b: ConfirmedBooking) => {
-    navigation.navigate('Booking', {
-      reschedule: {
-        bookingId: b.id,
-        stylist: b.stylist ?? undefined,
-        dateIso: b.dateIso,
-        timeSlot: b.time,
-      },
-    });
+    const proceed = () => {
+      replaceCart(
+        b.services,
+        b.guests?.map(g => ({ name: g.name, items: g.services }))
+      );
+      navigation.navigate('Booking', {
+        reschedule: {
+          bookingId: b.id,
+          stylist: b.stylist ?? undefined,
+          dateIso: b.dateIso,
+          timeSlot: b.time,
+          services: b.services,
+          guests: b.guests,
+        },
+      });
+    };
+
+    if (totalItems > 0) {
+      Alert.alert(
+        'Replace cart?',
+        'Your current cart will be replaced with the services from this booking.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Replace', style: 'destructive', onPress: proceed },
+        ]
+      );
+      return;
+    }
+    proceed();
   };
 
   return (

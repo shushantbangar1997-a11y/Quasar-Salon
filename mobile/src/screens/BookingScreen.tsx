@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, ScrollView, Pressable, StyleSheet,
-  SafeAreaView, StatusBar, ActivityIndicator,
+  SafeAreaView, StatusBar, ActivityIndicator, Alert,
 } from 'react-native';
 import { useCart } from '../CartContext';
+import { useBookings } from '../BookingsContext';
 import { useStaff } from '../StaffContext';
 import { StaffMember } from '../quasarData';
 import { COLORS, RADIUS } from '../theme';
@@ -21,6 +22,7 @@ type Step = 'date' | 'stylist' | 'confirm';
 
 export default function BookingScreen({ navigation, route }: BookingScreenProps) {
   const { guests, totalPrice, clearCart } = useCart();
+  const { cancelBooking } = useBookings();
   const allItems = guests.flatMap(g => g.items);
 
   const reschedule = route?.params?.reschedule;
@@ -134,6 +136,17 @@ export default function BookingScreen({ navigation, route }: BookingScreenProps)
       );
       const result = await createQuasarBooking(payload);
 
+      let originalCancelFailed = false;
+      if (reschedule?.bookingId) {
+        try {
+          await cancelBooking(reschedule.bookingId);
+        } catch (cancelErr) {
+          // New booking is already created; surface the failure but don't block success.
+          originalCancelFailed = true;
+          console.warn('Failed to cancel original booking after reschedule:', cancelErr);
+        }
+      }
+
       const guestsWithItemsLocal = guests.filter(g => g.items.length > 0);
       const bookingGuests = guestsWithItemsLocal.length > 1
         ? guestsWithItemsLocal.map(g => ({ name: g.name, services: g.items }))
@@ -154,6 +167,12 @@ export default function BookingScreen({ navigation, route }: BookingScreenProps)
 
       clearCart();
       setLoading(false);
+      if (originalCancelFailed) {
+        Alert.alert(
+          'Reschedule partially completed',
+          "Your new booking is confirmed, but we couldn't cancel the original one. Please cancel it manually from My Bookings."
+        );
+      }
       navigation.navigate('BookingSuccess', { booking });
     } catch (e: unknown) {
       setLoading(false);

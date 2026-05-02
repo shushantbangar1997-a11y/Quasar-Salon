@@ -1,7 +1,8 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { CompositeScreenProps } from '@react-navigation/native';
-import { ConfirmedBooking } from './BookingsContext';
+import { ConfirmedBooking, BookingGuest } from './BookingsContext';
+import { CartItem } from './CartContext';
 import { QuasarCategory, StaffMember } from './quasarData';
 
 export type RescheduleParams = {
@@ -9,6 +10,8 @@ export type RescheduleParams = {
   stylist?: StaffMember;
   dateIso?: string;
   timeSlot?: string;
+  services?: CartItem[];
+  guests?: BookingGuest[];
 };
 
 export type RootStackParamList = {
