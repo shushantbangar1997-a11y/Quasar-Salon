@@ -47,10 +47,26 @@ mobile/
       LoginScreen.tsx            — Email login (optional)
       SignUpScreen.tsx           — Account creation (optional)
     firebase.ts                  — Firebase initialization (graceful if env vars missing)
-    api.ts                       — API client for backend
-    demoData.ts                  — Legacy file (not imported; kept for reference)
-    services/                    — Backend API service helpers
+    api.ts                       — API client for backend (auth + admin + bookings)
+    AdminContext.tsx             — Admin session: backend-verified password, kept in memory
+    BookingsContext.tsx          — Real-time bookings via Firestore onSnapshot (no demo fallback)
+    StaffContext.tsx             — Local staff list (mutated by admin edits)
+    screens/EditProfileScreen.tsx       — Update name + phone (Apple/Google compliance)
+    screens/DeleteAccountScreen.tsx     — Permanent delete with type-DELETE confirmation
+    screens/HelpContactScreen.tsx       — Support email + phone + FAQs
+    screens/PrivacyPolicyScreen.tsx     — Privacy policy (in-app)
+    screens/TermsScreen.tsx             — Terms of service (in-app)
 ```
+
+## Production / store readiness
+
+- `mobile/app.json` — bundle id `com.quasarsalon.app`, scheme `quasarsalon`, light UI, icon/adaptive/splash all wired to `assets/quasar-logo-transparent.png` on `#FFFFFF`. iOS infoPlist sets `NSPhotoLibraryUsageDescription`, `NSCameraUsageDescription`, `ITSAppUsesNonExemptEncryption=false`. `expo-image-picker` registered as a plugin. Android adaptive icon + storage/media-images permissions declared.
+- `mobile/app.config.js` — overlays `expo.extra.eas.projectId` from `EAS_PROJECT_ID` env at build time (so the EAS UUID is never committed). Run `eas init` once or set `EAS_PROJECT_ID` in the EAS environment before `eas build`.
+- `mobile/eas.json` — `development` (dev client + iOS simulator), `preview` (internal APK), and `production` (m-medium iOS, app-bundle Android, autoIncrement) profiles.
+- New legal/account screens (Edit Profile, Delete Account, Privacy, Terms, Help & Contact) registered in `App.tsx` and `src/navigation.ts`.
+- `BookingsContext` and `BookingScreen` no longer fall back to demo data — every booking, slot, and cancellation goes through the backend. Errors surface in the UI instead of silently succeeding.
+- `BookingScreen` is duration-aware: it requests slots with the cart's total duration so multi-service bookings don't double-book stylists, and re-validates the slot just before `POST /bookings`.
+- Admin login (`POST /admin/login`) is rate-limited at the server's general `/api` rate limiter (100 req/15min/IP). OTP send/verify have a stricter rate limit (3 per email + 10 per IP per 15min). Cancellations within `CANCELLATION_GRACE_HOURS` (default 2h) of the appointment are blocked for the booking's owner.
 
 ## Replit setup
 
@@ -110,6 +126,7 @@ ProfileScreen shows displayName/email from `auth.currentUser` and has a Sign Out
 
 ## Environment variables (all set in shared environment)
 
+Mobile (Expo, public — bundled into client):
 - `EXPO_PUBLIC_FIREBASE_API_KEY`
 - `EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN` — `quasar-salon.firebaseapp.com`
 - `EXPO_PUBLIC_FIREBASE_PROJECT_ID` — `quasar-salon`
@@ -117,10 +134,19 @@ ProfileScreen shows displayName/email from `auth.currentUser` and has a Sign Out
 - `EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
 - `EXPO_PUBLIC_FIREBASE_APP_ID`
 - `EXPO_PUBLIC_API_BASE_URL` — public origin for the Expo dev server (Metro proxies `/api/*` to the backend)
+- `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` — Google OAuth web client ID (web platform)
+- `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` — Google OAuth iOS client ID (required for native iOS Google Sign-In)
+- `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID` — Google OAuth Android client ID (required for native Android Google Sign-In)
+- `EXPO_PUBLIC_SUPPORT_EMAIL` (optional) — overrides the default support email shown on Help & Contact
+- `EXPO_PUBLIC_SUPPORT_PHONE` (optional) — overrides the default support phone shown on Help & Contact
+- `EXPO_PUBLIC_SALON_ADDRESS` (optional) — overrides the salon address shown on Help & Contact (newlines kept)
+
+Backend (server-only secrets):
 - `FIREBASE_SERVICE_ACCOUNT` — full JSON of Firebase Admin SDK service account key
-- `OTP_EMAIL_USER` — Gmail address used to send OTP emails (secret)
-- `OTP_EMAIL_PASS` — Gmail App Password for OTP email sending (secret)
-- `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` — Google OAuth web client ID for Google Sign-In (secret)
+- `FIREBASE_STORAGE_BUCKET` — Firebase Storage bucket the server uploads staff photos to (e.g. `quasar-salon.appspot.com`). Required for `POST /api/admin/staff/:id/photo`.
+- `OTP_EMAIL_USER` — Gmail address used to send OTP emails
+- `OTP_EMAIL_PASS` — Gmail App Password for OTP email sending
+- `ADMIN_PASSWORD` — server-side admin password. Required for `POST /api/admin/login` and the `x-admin-password` header on admin-only routes (e.g. staff photo upload). When unset, admin login returns HTTP 503.
 
 ## Live booking flow
 

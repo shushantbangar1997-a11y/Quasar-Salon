@@ -55,7 +55,10 @@ if (isFirebaseConfigured) {
 
   db = getFirestore(app);
 } else {
-  console.warn(
+  // Use a release-safe logger so we don't leak diagnostic noise in production.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { logger } = require('./logger') as typeof import('./logger');
+  logger.warn(
     'Firebase config not provided. Set EXPO_PUBLIC_FIREBASE_* environment variables to enable auth/Firestore.'
   );
 }

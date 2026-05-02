@@ -4,11 +4,11 @@ import {
   KeyboardAvoidingView, Platform, SafeAreaView, ScrollView,
   StatusBar, Image, ActivityIndicator
 } from 'react-native';
-import { createUserWithEmailAndPassword, signInWithCredential, GoogleAuthProvider } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signInWithCredential, GoogleAuthProvider, updateProfile } from 'firebase/auth';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 import { auth } from '../firebase';
-import { API_BASE_URL } from '../api';
+import { API_BASE_URL, updateUserProfile } from '../api';
 import { COLORS, RADIUS } from '../theme';
 import { SignUpScreenProps } from '../navigation';
 
@@ -17,6 +17,7 @@ WebBrowser.maybeCompleteAuthSession();
 export default function SignUpScreen({ navigation }: SignUpScreenProps) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
@@ -25,9 +26,13 @@ export default function SignUpScreen({ navigation }: SignUpScreenProps) {
   const [otpError, setOtpError] = useState('');
   const [usePassword, setUsePassword] = useState(false);
 
+  const isValidPhone = (p: string) => /^\+?\d[\d\s\-()]{6,19}$/.test(p.trim());
+
   const [googleLoading, setGoogleLoading] = useState(false);
   const [_googleRequest, googleResponse, promptGoogleAsync] = Google.useAuthRequest({
     webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
   });
 
   React.useEffect(() => {
@@ -38,7 +43,11 @@ export default function SignUpScreen({ navigation }: SignUpScreenProps) {
         setGoogleLoading(true);
         const credential = GoogleAuthProvider.credential(authentication.idToken);
         signInWithCredential(auth, credential)
-          .then(() => navigation.navigate('MainTabs'))
+          .then(() => {
+            // After Google sign-in, route to EditProfile so the customer can add a phone number
+            // (required by the salon, not provided by Google's basic profile).
+            navigation.navigate('EditProfile');
+          })
           .catch(e => setError(e instanceof Error ? e.message : 'Google sign-in failed'))
           .finally(() => setGoogleLoading(false));
       } else {
@@ -50,14 +59,20 @@ export default function SignUpScreen({ navigation }: SignUpScreenProps) {
   }, [googleResponse]);
 
   const handleSignUp = async () => {
-    if (!name || !email || !password) { setError('Please fill in all fields'); return; }
+    if (!name.trim() || !email || !password) { setError('Please fill in all fields'); return; }
+    if (!phone.trim()) { setError('Please enter your phone number — it\'s required to confirm your booking.'); return; }
+    if (!isValidPhone(phone)) { setError('Please enter a valid phone number (7–15 digits, optional leading +).'); return; }
     if (password !== confirm) { setError('Passwords do not match'); return; }
     if (password.length < 6) { setError('Password must be at least 6 characters'); return; }
     if (!auth) { navigation.navigate('MainTabs'); return; }
     setError('');
     setLoading(true);
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
+      const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
+      try { await updateProfile(cred.user, { displayName: name.trim() }); } catch { /* non-fatal */ }
+      try {
+        await updateUserProfile({ name: name.trim(), phone: phone.trim() });
+      } catch { /* non-fatal — user can edit later from Profile */ }
       navigation.navigate('MainTabs');
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Sign up failed');
@@ -68,6 +83,8 @@ export default function SignUpScreen({ navigation }: SignUpScreenProps) {
 
   const handleOtpSignUp = async () => {
     if (!email || !email.includes('@')) { setOtpError('Please enter a valid email address'); return; }
+    if (!phone.trim()) { setOtpError('Please enter your phone number — it\'s required to confirm your booking.'); return; }
+    if (!isValidPhone(phone)) { setOtpError('Please enter a valid phone number (7–15 digits, optional leading +).'); return; }
     setOtpError('');
     setSendingOtp(true);
     try {
@@ -78,7 +95,10 @@ export default function SignUpScreen({ navigation }: SignUpScreenProps) {
       });
       const data = await res.json();
       if (!res.ok) { setOtpError(data.error ?? 'Failed to send code'); return; }
-      navigation.navigate('OTP', { email: email.toLowerCase().trim() });
+      navigation.navigate('OTP', {
+        email: email.toLowerCase().trim(),
+        phone: phone.trim(),
+      });
     } catch {
       setOtpError('Network error. Please try again.');
     } finally {
@@ -135,6 +155,15 @@ export default function SignUpScreen({ navigation }: SignUpScreenProps) {
                 keyboardType="email-address"
                 autoCapitalize="none"
               />
+              <TextInput
+                style={s.input}
+                placeholder="Phone number"
+                placeholderTextColor={COLORS.textMuted}
+                value={phone}
+                onChangeText={t => { setPhone(t); setOtpError(''); }}
+                keyboardType="phone-pad"
+                autoComplete="tel"
+              />
               {otpError ? <Text style={s.errorText}>{otpError}</Text> : null}
               <Pressable
                 style={[s.btn, sendingOtp && { opacity: 0.6 }]}
@@ -157,6 +186,7 @@ export default function SignUpScreen({ navigation }: SignUpScreenProps) {
             <>
               <TextInput style={s.input} placeholder="Full Name" placeholderTextColor={COLORS.textMuted} value={name} onChangeText={setName} />
               <TextInput style={s.input} placeholder="Email" placeholderTextColor={COLORS.textMuted} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
+              <TextInput style={s.input} placeholder="Phone number" placeholderTextColor={COLORS.textMuted} value={phone} onChangeText={setPhone} keyboardType="phone-pad" autoComplete="tel" />
               <TextInput style={s.input} placeholder="Password" placeholderTextColor={COLORS.textMuted} value={password} onChangeText={setPassword} secureTextEntry autoCapitalize="none" />
               <TextInput style={s.input} placeholder="Confirm Password" placeholderTextColor={COLORS.textMuted} value={confirm} onChangeText={setConfirm} secureTextEntry autoCapitalize="none" />
               {error ? <Text style={s.errorText}>{error}</Text> : null}
@@ -171,6 +201,13 @@ export default function SignUpScreen({ navigation }: SignUpScreenProps) {
               </Pressable>
             </>
           )}
+
+          <Text style={s.legalText}>
+            By creating an account you agree to our{' '}
+            <Text style={s.legalLink} onPress={() => navigation.navigate('Terms')}>Terms of Service</Text>
+            {' '}and{' '}
+            <Text style={s.legalLink} onPress={() => navigation.navigate('PrivacyPolicy')}>Privacy Policy</Text>.
+          </Text>
 
           <Pressable onPress={() => navigation.navigate('Login')} style={s.loginLink}>
             <Text style={s.loginText}>
@@ -208,6 +245,8 @@ const s = StyleSheet.create({
   btnText: { color: COLORS.bg, fontSize: 16, fontWeight: '700' },
   switchLink: { marginTop: 12, alignItems: 'center' },
   switchText: { color: COLORS.primary, fontSize: 13, fontWeight: '600' },
-  loginLink: { marginTop: 20, alignItems: 'center' },
+  legalText: { marginTop: 18, fontSize: 12, color: COLORS.textMuted, textAlign: 'center', lineHeight: 18 },
+  legalLink: { color: COLORS.primary, fontWeight: '600', textDecorationLine: 'underline' },
+  loginLink: { marginTop: 16, alignItems: 'center' },
   loginText: { color: COLORS.textSecondary, fontSize: 14 },
 });

@@ -4,13 +4,11 @@ import {
   SafeAreaView, StatusBar, ActivityIndicator,
 } from 'react-native';
 import { useCart } from '../CartContext';
-import { useBookings } from '../BookingsContext';
 import { useStaff } from '../StaffContext';
-import { DEMO_BUSY_SLOTS, StaffMember } from '../quasarData';
+import { StaffMember } from '../quasarData';
 import { COLORS, RADIUS } from '../theme';
 import { BookingScreenProps } from '../navigation';
 import {
-  API_BASE_URL,
   ApiError,
   fetchStaffSlots,
   createQuasarBooking,
@@ -24,7 +22,6 @@ type Step = 'date' | 'stylist' | 'confirm';
 export default function BookingScreen({ navigation, route }: BookingScreenProps) {
   const { guests, totalPrice, clearCart } = useCart();
   const allItems = guests.flatMap(g => g.items);
-  const { addBooking } = useBookings();
 
   const reschedule = route?.params?.reschedule;
 
@@ -52,12 +49,10 @@ export default function BookingScreen({ navigation, route }: BookingScreenProps)
   const [slotMap, setSlotMap] = useState<Record<string, string[]>>({});
   const [slotsLoading, setSlotsLoading] = useState(false);
 
-  const apiAvailable = Boolean(API_BASE_URL);
   const totalDuration = allItems.reduce((sum, item) => sum + item.service.durationMins * item.qty, 0);
 
   /** Fetch slots for ALL staff when advancing to time step, honoring total service duration */
   const fetchSlotsForDate = useCallback(async (dateIso: string) => {
-    if (!apiAvailable) return;
     setSlotsLoading(true);
     try {
       const results = await Promise.allSettled(
@@ -75,21 +70,20 @@ export default function BookingScreen({ navigation, route }: BookingScreenProps)
     } finally {
       setSlotsLoading(false);
     }
-  }, [apiAvailable, staffList, totalDuration]);
+  }, [staffList, totalDuration]);
 
   const advanceToStylist = () => {
     if (selectedDate) fetchSlotsForDate(selectedDate.iso);
     setStep('stylist');
   };
 
-  /** Check if a staff member is available at a given time */
+  /** Check if a staff member is available at a given time, based on the API-loaded slot map. */
   const isStaffAvailableAtTime = (staff: StaffMember, time: string): boolean => {
     if (!staff.available) return false;
-    if (slotMap[staff.id]) {
-      return slotMap[staff.id].includes(time);
-    }
-    const busy = DEMO_BUSY_SLOTS[staff.id] || [];
-    return !busy.includes(time);
+    const slots = slotMap[staff.id];
+    // While slots are loading or unavailable for this staff, treat as not bookable for this time
+    if (!slots) return false;
+    return slots.includes(time);
   };
 
   const availableStaff = staffList.filter(staff => {
@@ -98,108 +92,88 @@ export default function BookingScreen({ navigation, route }: BookingScreenProps)
     return isStaffAvailableAtTime(staff, selectedTime);
   });
 
-  /** Confirm booking — use API when available, local state only when API is not configured */
+  const [lastErrorRetryable, setLastErrorRetryable] = useState(false);
+
+  /** Confirm booking — always calls the backend; on failure surfaces the error and stays on Confirm. */
   const handleConfirm = async () => {
     if (allItems.length === 0) {
       setErrorMsg('Your cart is empty. Please add services before booking.');
+      setLastErrorRetryable(false);
+      return;
+    }
+    if (!selectedStylist || !selectedDate || !selectedTime) {
+      setErrorMsg('Please pick a date, time, and stylist before confirming.');
+      setLastErrorRetryable(false);
       return;
     }
 
     setErrorMsg(null);
+    setLastErrorRetryable(false);
     setLoading(true);
 
-    if (apiAvailable) {
-      try {
-        // Re-check slot is still available (duration-aware) before submitting
-        const freshAvailability = await fetchStaffSlots(selectedStylist!.id, selectedDate!.iso, totalDuration || undefined);
-        if (!freshAvailability.slots.includes(selectedTime)) {
-          setLoading(false);
-          setErrorMsg('This time slot was just taken. Please choose a different time.');
-          setSelectedTime('');
-          setStep('date');
-          return;
-        }
-
-        const payload = buildQuasarBookingPayload(
-          guests,
-          selectedStylist!.id,
-          selectedTime,
-          selectedDate!.iso,
-          selectedDate!.label,
-          totalPrice
-        );
-        const result = await createQuasarBooking(payload);
-
-        const booking = {
-          id: result.id,
-          services: allItems,
-          date: selectedDate?.label ?? '',
-          time: selectedTime,
-          stylist: selectedStylist,
-          total: totalPrice,
-          status: 'pending' as const,
-          createdAt: Date.now(),
-        };
-
-        clearCart();
-        setLoading(false);
-        navigation.navigate('BookingSuccess', { booking });
-        return;
-      } catch (e: unknown) {
-        // Slot-conflict or other API business-logic errors → show error, stay on confirm
-        if (e instanceof ApiError) {
-          setLoading(false);
-          if (e.status === 409) {
-            setErrorMsg('This time slot was just booked by someone else. Please choose a different time.');
-            setSelectedTime('');
-            setStep('date');
-          } else {
-            setErrorMsg(e.message || 'Something went wrong. Please try again.');
-          }
-          return;
-        }
-        // Network-level failure (backend unreachable in dev) → fall through to demo mode
-      }
-    }
-
-    // Local-only / network-fallback mode — saves to in-memory state for demo/dev
     try {
-      await new Promise<void>(r => setTimeout(r, 600));
+      // Re-check slot is still available (duration-aware) before submitting
+      const freshAvailability = await fetchStaffSlots(selectedStylist.id, selectedDate.iso, totalDuration || undefined);
+      if (!freshAvailability.slots.includes(selectedTime)) {
+        setLoading(false);
+        setErrorMsg('This time slot was just taken. Please choose a different time.');
+        setLastErrorRetryable(false);
+        setSelectedTime('');
+        setStep('date');
+        return;
+      }
 
-      const serviceSnapshot = allItems.map(i => ({
-        service: {
-          id: i.service.id,
-          name: i.service.name,
-          price: i.service.price,
-          durationMins: i.service.durationMins,
-          gender: i.service.gender,
-        },
-        category: {
-          id: i.category.id,
-          name: i.category.name,
-          icon: i.category.icon,
-          imageUrl: i.category.imageUrl,
-          services: [],
-        },
-        qty: i.qty,
-      }));
+      const payload = buildQuasarBookingPayload(
+        guests,
+        selectedStylist.id,
+        selectedTime,
+        selectedDate.iso,
+        selectedDate.label,
+        totalPrice
+      );
+      const result = await createQuasarBooking(payload);
 
-      const booking = addBooking({
-        services: serviceSnapshot,
-        date: selectedDate?.label ?? '',
+      const guestsWithItemsLocal = guests.filter(g => g.items.length > 0);
+      const bookingGuests = guestsWithItemsLocal.length > 1
+        ? guestsWithItemsLocal.map(g => ({ name: g.name, services: g.items }))
+        : undefined;
+
+      const booking = {
+        id: result.id,
+        services: allItems,
+        guests: bookingGuests,
+        date: selectedDate.label,
+        dateIso: selectedDate.iso,
         time: selectedTime,
         stylist: selectedStylist,
         total: totalPrice,
-        status: 'confirmed',
-      });
+        status: 'confirmed' as const,
+        createdAt: Date.now(),
+      };
 
       clearCart();
       setLoading(false);
       navigation.navigate('BookingSuccess', { booking });
     } catch (e: unknown) {
       setLoading(false);
-      const message = e instanceof Error ? e.message : 'Something went wrong. Please try again.';
-      setErrorMsg(message);
+      if (e instanceof ApiError) {
+        if (e.status === 409) {
+          setErrorMsg('This time slot was just booked by someone else. Please choose a different time.');
+          setLastErrorRetryable(false);
+          setSelectedTime('');
+          setStep('date');
+        } else if (e.status === 401) {
+          setErrorMsg('Please sign in to confirm your booking.');
+          setLastErrorRetryable(false);
+        } else {
+          // 5xx + other transient backend errors — let the user retry in one tap
+          setErrorMsg(e.message || 'Something went wrong. Please try again.');
+          setLastErrorRetryable(e.status >= 500 || e.status === 0);
+        }
+        return;
+      }
+      setErrorMsg('Network error — please check your connection and try again.');
+      setLastErrorRetryable(true);
     }
   };
 
@@ -269,7 +243,7 @@ export default function BookingScreen({ navigation, route }: BookingScreenProps)
             selectedTime={selectedTime}
             onDateChange={d => {
               setSelectedDate(d);
-              if (apiAvailable) fetchSlotsForDate(d.iso);
+              fetchSlotsForDate(d.iso);
             }}
             onTimeChange={setSelectedTime}
             staffList={staffList}
@@ -284,7 +258,7 @@ export default function BookingScreen({ navigation, route }: BookingScreenProps)
             <Text style={s.stepSub}>
               Available on {selectedDate?.label} at {selectedTime}
               {' '}({availableStaff.length} stylist{availableStaff.length !== 1 ? 's' : ''} free)
-              {apiAvailable && <Text style={{ color: COLORS.primary }}> · Live</Text>}
+              <Text style={{ color: COLORS.primary }}> · Live</Text>
             </Text>
             {staffList.map(staff => {
               const isBusy = !isStaffAvailableAtTime(staff, selectedTime);
@@ -305,11 +279,9 @@ export default function BookingScreen({ navigation, route }: BookingScreenProps)
         {step === 'confirm' && (
           <View>
             <Text style={s.stepTitle}>Booking Summary</Text>
-            {apiAvailable && (
-              <View style={s.liveNotice}>
-                <Text style={s.liveNoticeText}>🔒 Your slot will be locked in real time on confirmation</Text>
-              </View>
-            )}
+            <View style={s.liveNotice}>
+              <Text style={s.liveNoticeText}>🔒 Your slot will be locked in real time on confirmation</Text>
+            </View>
             <View style={s.summaryBox}>
               <SumRow label="Date" value={selectedDate?.label ?? ''} />
               <SumRow label="Time" value={selectedTime} />
@@ -344,6 +316,11 @@ export default function BookingScreen({ navigation, route }: BookingScreenProps)
         {errorMsg ? (
           <View style={s.errorBox}>
             <Text style={s.errorText}>⚠ {errorMsg}</Text>
+            {lastErrorRetryable && step === 'confirm' && !loading ? (
+              <Pressable style={s.retryBtn} onPress={handleConfirm}>
+                <Text style={s.retryBtnText}>Retry</Text>
+              </Pressable>
+            ) : null}
           </View>
         ) : null}
         {step === 'date' && (
@@ -547,4 +524,6 @@ const s = StyleSheet.create({
   ctaBtnText: { color: COLORS.bg, fontSize: 15, fontWeight: '800' },
   errorBox: { backgroundColor: COLORS.errorBg, borderRadius: RADIUS.md, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: COLORS.error },
   errorText: { color: COLORS.error, fontSize: 13, fontWeight: '600', lineHeight: 18 },
+  retryBtn: { marginTop: 10, alignSelf: 'flex-start', paddingHorizontal: 14, paddingVertical: 8, borderRadius: RADIUS.sm, backgroundColor: COLORS.error },
+  retryBtnText: { color: COLORS.bg, fontSize: 13, fontWeight: '700' },
 });

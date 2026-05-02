@@ -27,6 +27,8 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [_googleRequest, googleResponse, promptGoogleAsync] = Google.useAuthRequest({
     webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
   });
 
   React.useEffect(() => {

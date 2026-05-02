@@ -103,13 +103,26 @@ export default function MyBookingsScreen({ navigation }: MyBookingsScreenProps) 
                   </View>
                 </View>
 
-                {/* Services */}
+                {/* Services / Guests */}
                 <View style={s.servicesBox}>
-                  {b.services.map((item, i) => (
-                    <Text key={i} style={s.svcItem}>
-                      · {item.qty > 1 ? `${item.qty}× ` : ''}{item.service.name}
-                    </Text>
-                  ))}
+                  {b.guests && b.guests.length > 0 ? (
+                    b.guests.map((g, gi) => (
+                      <View key={gi} style={{ marginBottom: 6 }}>
+                        <Text style={s.guestLabel}>{g.name}</Text>
+                        {g.services.map((item, i) => (
+                          <Text key={i} style={s.svcItem}>
+                            · {item.qty > 1 ? `${item.qty}× ` : ''}{item.service.name}
+                          </Text>
+                        ))}
+                      </View>
+                    ))
+                  ) : (
+                    b.services.map((item, i) => (
+                      <Text key={i} style={s.svcItem}>
+                        · {item.qty > 1 ? `${item.qty}× ` : ''}{item.service.name}
+                      </Text>
+                    ))
+                  )}
                 </View>
 
                 <View style={s.divider} />
@@ -183,6 +196,7 @@ const s = StyleSheet.create({
   statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
   statusText: { fontSize: 12, fontWeight: '600' },
   servicesBox: { marginTop: 10, marginLeft: 4 },
+  guestLabel: { fontSize: 12, fontWeight: '700', color: COLORS.primary, marginBottom: 2, textTransform: 'uppercase', letterSpacing: 0.4 },
   svcItem: { fontSize: 13, color: COLORS.textSecondary, marginBottom: 3 },
   divider: { height: 1, backgroundColor: COLORS.border, marginVertical: 12 },
   metaRow: { flexDirection: 'row', justifyContent: 'space-between' },

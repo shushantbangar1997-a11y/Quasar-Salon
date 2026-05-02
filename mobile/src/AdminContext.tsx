@@ -1,10 +1,12 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
-
-const ADMIN_PASSWORD = process.env.EXPO_PUBLIC_ADMIN_PASSWORD || 'quasar2024';
+import React, { createContext, useContext, useState, ReactNode, useCallback } from 'react';
+import { adminLogin, ApiError } from './api';
 
 interface AdminContextType {
   isAdmin: boolean;
-  loginAsAdmin: (password: string) => boolean;
+  /** Admin password kept in-memory for the current session — used to authorise admin API calls. */
+  adminPassword: string | null;
+  /** Verifies the password against the backend. Resolves true on success, throws on transport errors. */
+  loginAsAdmin: (password: string) => Promise<{ ok: boolean; error?: string }>;
   logoutAdmin: () => void;
 }
 
@@ -12,19 +14,33 @@ const AdminContext = createContext<AdminContextType | null>(null);
 
 export function AdminProvider({ children }: { children: ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
+  const [adminPassword, setAdminPassword] = useState<string | null>(null);
 
-  const loginAsAdmin = (password: string): boolean => {
-    if (password === ADMIN_PASSWORD) {
+  const loginAsAdmin = useCallback(async (password: string): Promise<{ ok: boolean; error?: string }> => {
+    const trimmed = password.trim();
+    if (!trimmed) return { ok: false, error: 'Please enter the admin password.' };
+    try {
+      await adminLogin(trimmed);
+      setAdminPassword(trimmed);
       setIsAdmin(true);
-      return true;
+      return { ok: true };
+    } catch (e: unknown) {
+      if (e instanceof ApiError) {
+        if (e.status === 401) return { ok: false, error: 'Incorrect password. Try again.' };
+        if (e.status === 503) return { ok: false, error: 'Admin login is not configured on the server.' };
+        return { ok: false, error: e.message || 'Login failed. Try again.' };
+      }
+      return { ok: false, error: 'Network error. Please check your connection.' };
     }
-    return false;
-  };
+  }, []);
 
-  const logoutAdmin = () => setIsAdmin(false);
+  const logoutAdmin = useCallback(() => {
+    setIsAdmin(false);
+    setAdminPassword(null);
+  }, []);
 
   return (
-    <AdminContext.Provider value={{ isAdmin, loginAsAdmin, logoutAdmin }}>
+    <AdminContext.Provider value={{ isAdmin, adminPassword, loginAsAdmin, logoutAdmin }}>
       {children}
     </AdminContext.Provider>
   );

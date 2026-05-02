@@ -1,34 +1,38 @@
 "use strict";
+var _a;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.app = void 0;
 const admin = require("firebase-admin");
 const cors = require("cors");
 const express = require("express");
 const nodemailer = require("nodemailer");
+const STORAGE_BUCKET = process.env.FIREBASE_STORAGE_BUCKET;
 if (admin.apps.length === 0) {
     const serviceAccountEnv = process.env.FIREBASE_SERVICE_ACCOUNT;
+    const initOptions = {};
+    if (STORAGE_BUCKET)
+        initOptions.storageBucket = STORAGE_BUCKET;
     if (serviceAccountEnv) {
         try {
             const serviceAccount = JSON.parse(serviceAccountEnv);
-            admin.initializeApp({
-                credential: admin.credential.cert(serviceAccount),
-            });
+            admin.initializeApp(Object.assign(Object.assign({}, initOptions), { credential: admin.credential.cert(serviceAccount) }));
         }
         catch (e) {
             console.error('Failed to parse FIREBASE_SERVICE_ACCOUNT JSON:', e);
-            admin.initializeApp();
+            admin.initializeApp(initOptions);
         }
     }
     else {
         console.warn('FIREBASE_SERVICE_ACCOUNT is not set — initialising Firebase Admin with projectId only. ' +
             'Firestore writes and Auth token verification will fail until the secret is configured.');
-        admin.initializeApp({ projectId: 'quasar-salon' });
+        admin.initializeApp(Object.assign(Object.assign({}, initOptions), { projectId: 'quasar-salon' }));
     }
 }
 const db = admin.firestore();
 exports.app = express();
+exports.app.set('trust proxy', true);
 exports.app.use(cors({ origin: true }));
-exports.app.use(express.json({ limit: '1mb' }));
+exports.app.use(express.json({ limit: '8mb' }));
 function isNonEmptyString(v) {
     return typeof v === 'string' && v.trim().length > 0;
 }
@@ -127,6 +131,60 @@ function makeTransport() {
 function generateOtp() {
     return String(Math.floor(100000 + Math.random() * 900000));
 }
+const otpEmailLimits = new Map();
+const otpIpLimits = new Map();
+const RATE_WINDOW_MS = 15 * 60 * 1000;
+const RATE_EMAIL_MAX = 3;
+const RATE_IP_MAX = 10;
+function takeRateToken(map, key, max) {
+    const now = Date.now();
+    const bucket = map.get(key);
+    if (!bucket || now >= bucket.resetAt) {
+        map.set(key, { count: 1, resetAt: now + RATE_WINDOW_MS });
+        return { ok: true, resetInMs: RATE_WINDOW_MS };
+    }
+    if (bucket.count >= max) {
+        return { ok: false, resetInMs: bucket.resetAt - now };
+    }
+    bucket.count++;
+    return { ok: true, resetInMs: bucket.resetAt - now };
+}
+function clientIp(req) {
+    const xff = req.headers['x-forwarded-for'];
+    if (typeof xff === 'string' && xff.length > 0)
+        return xff.split(',')[0].trim();
+    return req.ip || 'unknown';
+}
+/** ──── Admin auth helpers ──── */
+function requireAdminPassword(req, res) {
+    const expected = process.env.ADMIN_PASSWORD;
+    if (!expected) {
+        res.status(503).json({ error: 'Admin authentication is not configured on the server' });
+        return false;
+    }
+    const provided = req.headers['x-admin-password'];
+    if (typeof provided !== 'string' || provided !== expected) {
+        res.status(401).json({ error: 'Invalid admin credentials' });
+        return false;
+    }
+    return true;
+}
+/** Cancellation grace window — env-configurable, defaults to 2 hours */
+const CANCELLATION_GRACE_HOURS = Number((_a = process.env.CANCELLATION_GRACE_HOURS) !== null && _a !== void 0 ? _a : '2');
+const PHONE_REGEX = /^\+?\d{7,15}$/;
+function bookingStartTime(dateStr, timeSlot) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr))
+        return null;
+    try {
+        const time24 = slotTo24h(timeSlot);
+        const [year, month, day] = dateStr.split('-').map(Number);
+        const [hour, minute] = time24.split(':').map(Number);
+        return new Date(year, month - 1, day, hour, minute);
+    }
+    catch (_a) {
+        return null;
+    }
+}
 /** ──── Routes ──── */
 exports.app.get('/health', (_req, res) => {
     res.json({ ok: true, service: 'quasar-salon-api' });
@@ -138,6 +196,18 @@ exports.app.post('/auth/send-otp', async (req, res) => {
         return void badRequest(res, 'A valid email address is required');
     }
     const normalised = email.toLowerCase().trim();
+    // Rate-limit per email and per IP
+    const ip = clientIp(req);
+    const emailLimit = takeRateToken(otpEmailLimits, normalised, RATE_EMAIL_MAX);
+    if (!emailLimit.ok) {
+        const mins = Math.ceil(emailLimit.resetInMs / 60000);
+        return void res.status(429).json({ error: `Too many codes requested for this email. Please try again in ${mins} minute${mins === 1 ? '' : 's'}.` });
+    }
+    const ipLimit = takeRateToken(otpIpLimits, ip, RATE_IP_MAX);
+    if (!ipLimit.ok) {
+        const mins = Math.ceil(ipLimit.resetInMs / 60000);
+        return void res.status(429).json({ error: `Too many requests from this device. Please try again in ${mins} minute${mins === 1 ? '' : 's'}.` });
+    }
     const code = generateOtp();
     const expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes
     try {
@@ -255,6 +325,21 @@ exports.app.put('/users/me', authenticateUser, async (req, res) => {
             return void badRequest(res, 'name must be a non-empty string');
         updates.name = body.name.trim();
     }
+    if (body.phone !== undefined) {
+        if (typeof body.phone !== 'string')
+            return void badRequest(res, 'phone must be a string');
+        const trimmed = body.phone.replace(/[\s\-()]/g, '').trim();
+        if (trimmed.length === 0) {
+            // Allow clearing the phone by passing empty string
+            updates.phone = '';
+        }
+        else if (!PHONE_REGEX.test(trimmed)) {
+            return void badRequest(res, 'phone must be 7–15 digits with an optional leading "+"');
+        }
+        else {
+            updates.phone = trimmed;
+        }
+    }
     if (body.photoUrl !== undefined) {
         if (!isNonEmptyString(body.photoUrl))
             return void badRequest(res, 'photoUrl must be a non-empty string');
@@ -265,6 +350,155 @@ exports.app.put('/users/me', authenticateUser, async (req, res) => {
     await db.collection('users').doc(uid).set(Object.assign(Object.assign({}, updates), nowTimestamps()), { merge: true });
     const doc = await db.collection('users').doc(uid).get();
     res.status(200).json(Object.assign({ id: doc.id }, doc.data()));
+});
+/** DELETE /users/me — wipe Firebase Auth user first, then Firestore user doc + free future bookings.
+ * Auth-first ordering makes the failure mode deterministic: if Auth deletion fails, no Firestore data
+ * has changed yet, so the client can safely retry. Once Auth is gone, the user can no longer log in,
+ * so the subsequent Firestore cleanup is the only path that needs to converge (it's idempotent).
+ */
+exports.app.delete('/users/me', authenticateUser, async (req, res) => {
+    const uid = requireAuth(req, res);
+    if (!uid)
+        return;
+    // Step 1 — remove the Firebase Auth user first.
+    try {
+        await admin.auth().deleteUser(uid);
+    }
+    catch (e) {
+        const code = e === null || e === void 0 ? void 0 : e.code;
+        if (code !== 'auth/user-not-found') {
+            console.error('DELETE /users/me — Firebase Auth deleteUser failed:', e);
+            res.status(500).json({ error: 'Failed to remove sign-in account. Please try again.' });
+            return;
+        }
+        // user-not-found is fine — proceed to clean up any orphaned Firestore data.
+        console.warn('DELETE /users/me — Auth user already removed; proceeding to Firestore cleanup.');
+    }
+    // Step 2 — purge bookings, blocked slots, and the user doc. Best-effort: the Auth user is already
+    // gone, so partial failure here is recoverable on a future call (idempotent batch deletes).
+    // Firestore caps a single batch at 500 ops, so we chunk to stay well under that even when a user
+    // has a large booking history with many blocked slots per booking.
+    const FIRESTORE_BATCH_LIMIT = 450;
+    try {
+        const todayIso = new Date().toISOString().split('T')[0];
+        const bookingsSnap = await db.collection('bookings').where('userId', '==', uid).get();
+        const ops = [];
+        for (const docSnap of bookingsSnap.docs) {
+            const data = docSnap.data();
+            const dateStr = data.date;
+            const slotsBlocked = data.slotsBlocked;
+            const staffId = data.staffId;
+            // Free blocked time-slots for upcoming bookings only (past blocks are cosmetic)
+            if (isNonEmptyString(dateStr) &&
+                dateStr >= todayIso &&
+                Array.isArray(slotsBlocked) &&
+                isNonEmptyString(staffId)) {
+                for (const slot of slotsBlocked) {
+                    ops.push(db.collection('blocked_slots').doc(blockedSlotDocId(staffId, dateStr, slot)));
+                }
+            }
+            ops.push(docSnap.ref);
+        }
+        ops.push(db.collection('users').doc(uid));
+        for (let i = 0; i < ops.length; i += FIRESTORE_BATCH_LIMIT) {
+            const slice = ops.slice(i, i + FIRESTORE_BATCH_LIMIT);
+            const batch = db.batch();
+            for (const ref of slice)
+                batch.delete(ref);
+            await batch.commit();
+        }
+        res.status(200).json({ deleted: true });
+    }
+    catch (err) {
+        console.error('DELETE /users/me — Firestore cleanup failed after Auth deletion:', err);
+        res.status(500).json({ error: 'Account sign-in removed, but data cleanup failed. Please contact support.' });
+    }
+});
+/** ──── Admin endpoints ──── */
+/** Brute-force guard for admin login: per-IP failure counter with lockout window. */
+const ADMIN_LOGIN_MAX_FAILURES = 5;
+const ADMIN_LOGIN_LOCKOUT_MS = 15 * 60 * 1000;
+const adminLoginFailures = new Map();
+/** POST /admin/login — verify the admin password against ADMIN_PASSWORD env secret */
+exports.app.post('/admin/login', (req, res) => {
+    var _a;
+    const ip = (req.ip || req.socket.remoteAddress || 'unknown').toString();
+    const now = Date.now();
+    const record = adminLoginFailures.get(ip);
+    if (record && record.lockedUntil > now) {
+        const retryAfter = Math.ceil((record.lockedUntil - now) / 1000);
+        res.setHeader('Retry-After', String(retryAfter));
+        return void res.status(429).json({ error: 'Too many failed attempts. Try again later.' });
+    }
+    const { password } = req.body;
+    if (typeof password !== 'string' || password.length === 0) {
+        return void badRequest(res, 'password is required');
+    }
+    const expected = process.env.ADMIN_PASSWORD;
+    if (!expected) {
+        return void res.status(503).json({ error: 'Admin authentication is not configured on the server' });
+    }
+    if (password !== expected) {
+        const next = ((_a = record === null || record === void 0 ? void 0 : record.count) !== null && _a !== void 0 ? _a : 0) + 1;
+        const lockedUntil = next >= ADMIN_LOGIN_MAX_FAILURES ? now + ADMIN_LOGIN_LOCKOUT_MS : 0;
+        adminLoginFailures.set(ip, { count: next, lockedUntil });
+        if (lockedUntil > 0) {
+            console.warn(`/admin/login locked out ip=${ip} after ${next} failures`);
+        }
+        return void res.status(401).json({ error: 'Invalid admin password' });
+    }
+    adminLoginFailures.delete(ip);
+    res.status(200).json({ ok: true });
+});
+/** POST /admin/staff/:id/photo — upload a staff photo to Firebase Storage and persist URL */
+exports.app.post('/admin/staff/:id/photo', async (req, res) => {
+    if (!requireAdminPassword(req, res))
+        return;
+    const staffId = req.params.id;
+    if (!isNonEmptyString(staffId))
+        return void badRequest(res, 'staffId is required');
+    const { imageBase64, contentType } = req.body;
+    if (!isNonEmptyString(imageBase64))
+        return void badRequest(res, 'imageBase64 is required');
+    const ct = isNonEmptyString(contentType) ? contentType : 'image/jpeg';
+    if (!ct.startsWith('image/'))
+        return void badRequest(res, 'contentType must be an image type');
+    let buffer;
+    try {
+        buffer = Buffer.from(imageBase64, 'base64');
+    }
+    catch (_a) {
+        return void badRequest(res, 'Invalid base64 image data');
+    }
+    if (buffer.length === 0)
+        return void badRequest(res, 'Empty image data');
+    if (buffer.length > 5 * 1024 * 1024)
+        return void badRequest(res, 'Image too large (max 5MB)');
+    const ext = ct === 'image/png' ? 'png' : ct === 'image/webp' ? 'webp' : 'jpg';
+    const filePath = `staff/${staffId}.${ext}`;
+    try {
+        const bucket = admin.storage().bucket();
+        if (!bucket.name) {
+            return void res.status(503).json({ error: 'Firebase Storage bucket is not configured' });
+        }
+        const file = bucket.file(filePath);
+        await file.save(buffer, {
+            metadata: { contentType: ct, cacheControl: 'public, max-age=86400' },
+            resumable: false,
+            public: true,
+        });
+        try {
+            await file.makePublic();
+        }
+        catch ( /* already public via save({public:true}) */_b) { /* already public via save({public:true}) */ }
+        const photoUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}?v=${Date.now()}`;
+        await db.collection('staff').doc(staffId).set({ photoUrl, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+        res.status(200).json({ photoUrl });
+    }
+    catch (err) {
+        console.error('POST /admin/staff/:id/photo error:', err);
+        res.status(500).json({ error: 'Failed to upload staff photo' });
+    }
 });
 exports.app.post('/users/me/favourites', authenticateUser, async (req, res) => {
     const uid = requireAuth(req, res);
@@ -543,7 +777,7 @@ exports.app.post('/bookings', authenticateUser, async (req, res) => {
                     : undefined;
                 tx.set(bookingRef, Object.assign(Object.assign({ userId: uid, staffId,
                     timeSlot, date: dateStr, dateLabel: quasarBody.dateLabel.trim(), services: quasarBody.services }, (validatedGuests ? { guests: validatedGuests } : {})), { total,
-                    totalDuration, slotsBlocked: slotsToBlock, status: 'pending', createdAt: admin.firestore.FieldValue.serverTimestamp(), updatedAt: admin.firestore.FieldValue.serverTimestamp() }));
+                    totalDuration, slotsBlocked: slotsToBlock, status: 'confirmed', createdAt: admin.firestore.FieldValue.serverTimestamp(), updatedAt: admin.firestore.FieldValue.serverTimestamp() }));
             });
             const created = await bookingRef.get();
             res.status(201).json(Object.assign({ id: created.id }, created.data()));
@@ -589,7 +823,7 @@ exports.app.post('/bookings', authenticateUser, async (req, res) => {
         },
         date: legacyBody.date,
         notes: isNonEmptyString(legacyBody.notes) ? legacyBody.notes.trim() : undefined,
-        status: 'pending',
+        status: 'confirmed',
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
@@ -665,6 +899,23 @@ exports.app.patch('/bookings/:id/status', authenticateUser, async (req, res) => 
     const canEdit = data.userId === uid || data.staffId === uid || data.providerId === uid;
     if (!canEdit)
         return void forbidden(res, 'Not allowed to update this booking');
+    // Cancellation grace window — clients cannot cancel within N hours of the appointment.
+    // Staff/provider bookings are always allowed (they may need to cancel for emergencies).
+    if (status === 'cancelled' && data.userId === uid) {
+        const dateStr = data.date;
+        const timeSlot = data.timeSlot;
+        if (isNonEmptyString(dateStr) && isNonEmptyString(timeSlot)) {
+            const start = bookingStartTime(dateStr, timeSlot);
+            if (start) {
+                const hoursUntil = (start.getTime() - Date.now()) / (1000 * 60 * 60);
+                if (hoursUntil >= 0 && hoursUntil < CANCELLATION_GRACE_HOURS) {
+                    return void res.status(400).json({
+                        error: `Bookings cannot be cancelled within ${CANCELLATION_GRACE_HOURS} hour${CANCELLATION_GRACE_HOURS === 1 ? '' : 's'} of the appointment time. Please call the salon directly.`,
+                    });
+                }
+            }
+        }
+    }
     await ref.set(Object.assign({ status }, nowTimestamps()), { merge: true });
     // When cancelling a Quasar booking, free the blocked time slots so they become available again
     if (status === 'cancelled') {

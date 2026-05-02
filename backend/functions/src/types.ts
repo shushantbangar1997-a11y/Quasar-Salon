@@ -58,6 +58,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  phone?: string;
   role: UserRole;
   photoUrl?: string;
   favourites?: string[]; // providerIds
@@ -135,6 +136,7 @@ export interface CreateUserRequest {
 
 export interface UpdateUserRequest {
   name?: string;
+  phone?: string;
   photoUrl?: string;
 }
 

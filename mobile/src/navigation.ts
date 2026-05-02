@@ -19,8 +19,13 @@ export type RootStackParamList = {
   BookingSuccess: { booking: ConfirmedBooking };
   Login: undefined;
   SignUp: undefined;
-  OTP: { email: string };
+  OTP: { email: string; phone?: string };
   Admin: undefined;
+  EditProfile: undefined;
+  DeleteAccount: undefined;
+  HelpContact: undefined;
+  PrivacyPolicy: undefined;
+  Terms: undefined;
 };
 
 export type TabParamList = {
@@ -57,3 +62,8 @@ export type BookingSuccessScreenProps = NativeStackScreenProps<RootStackParamLis
 export type LoginScreenProps = NativeStackScreenProps<RootStackParamList, 'Login'>;
 export type SignUpScreenProps = NativeStackScreenProps<RootStackParamList, 'SignUp'>;
 export type OTPScreenProps = NativeStackScreenProps<RootStackParamList, 'OTP'>;
+export type EditProfileScreenProps = NativeStackScreenProps<RootStackParamList, 'EditProfile'>;
+export type DeleteAccountScreenProps = NativeStackScreenProps<RootStackParamList, 'DeleteAccount'>;
+export type HelpContactScreenProps = NativeStackScreenProps<RootStackParamList, 'HelpContact'>;
+export type PrivacyPolicyScreenProps = NativeStackScreenProps<RootStackParamList, 'PrivacyPolicy'>;
+export type TermsScreenProps = NativeStackScreenProps<RootStackParamList, 'Terms'>;

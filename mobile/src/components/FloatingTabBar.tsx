@@ -234,7 +234,6 @@ const s = StyleSheet.create({
     left: 0,
     right: 0,
     alignItems: 'center',
-    pointerEvents: 'box-none' as any,
   },
   tooltip: {
     position: 'absolute',

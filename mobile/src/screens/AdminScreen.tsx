@@ -37,7 +37,7 @@ function StatCard({ value, label, color }: { value: string | number; label: stri
   );
 }
 
-function LoginPanel({ onLogin }: { onLogin: (pw: string) => boolean }) {
+function LoginPanel({ onLogin }: { onLogin: (pw: string) => Promise<{ ok: boolean; error?: string }> }) {
   const [pw, setPw] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -45,12 +45,14 @@ function LoginPanel({ onLogin }: { onLogin: (pw: string) => boolean }) {
   const handleSubmit = async () => {
     if (!pw.trim()) { setError('Enter the admin password.'); return; }
     setLoading(true);
-    await new Promise(r => setTimeout(r, 400));
-    const ok = onLogin(pw.trim());
-    setLoading(false);
-    if (!ok) {
-      setError('Incorrect password. Try again.');
-      setPw('');
+    try {
+      const result = await onLogin(pw.trim());
+      if (!result.ok) {
+        setError(result.error ?? 'Incorrect password. Try again.');
+        setPw('');
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -104,8 +106,10 @@ const BLANK_FORM = {
 };
 
 export default function AdminScreen({ navigation }: Props) {
-  const { isAdmin, loginAsAdmin, logoutAdmin } = useAdmin();
+  const { isAdmin, adminPassword, loginAsAdmin, logoutAdmin } = useAdmin();
   const { bookings, cancelBooking } = useBookings();
+  const [photoUploadingId, setPhotoUploadingId] = useState<string | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
 
   const [tab, setTab] = useState<'bookings' | 'staff'>('bookings');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -148,22 +152,45 @@ export default function AdminScreen({ navigation }: Props) {
     setEditingId(null);
   };
 
-  const pickPhoto = async (forEdit: boolean) => {
+  const pickPhoto = async (_forEdit: boolean) => {
+    setPhotoError(null);
+    if (!editingId) { setPhotoError('Open a staff card in edit mode first.'); return; }
+    if (!adminPassword) { setPhotoError('Admin session expired — please sign in again.'); return; }
+
     if (Platform.OS !== 'web') {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!perm.granted) return;
+      if (!perm.granted) { setPhotoError('Permission to access photos is required.'); return; }
     }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: 'images',
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.7,
+      base64: true,
     });
-    if (!result.canceled && result.assets.length > 0) {
-      const uri = result.assets[0].uri;
-      if (forEdit) {
-        setEditForm(f => ({ ...f, photoUri: uri }));
-      }
+    if (result.canceled || result.assets.length === 0) return;
+
+    const asset = result.assets[0];
+    const base64 = asset.base64;
+    if (!base64) { setPhotoError('Failed to read the selected image. Please try again.'); return; }
+
+    const contentType =
+      asset.mimeType ||
+      (asset.uri.toLowerCase().endsWith('.png') ? 'image/png'
+        : asset.uri.toLowerCase().endsWith('.webp') ? 'image/webp'
+          : 'image/jpeg');
+
+    setPhotoUploadingId(editingId);
+    try {
+      const { uploadStaffPhoto } = await import('../api');
+      const { photoUrl } = await uploadStaffPhoto(editingId, adminPassword, base64, contentType);
+      setEditForm(f => ({ ...f, photoUri: photoUrl }));
+      updateStaff(editingId, { photoUri: photoUrl });
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Upload failed';
+      setPhotoError(message);
+    } finally {
+      setPhotoUploadingId(null);
     }
   };
 
@@ -481,14 +508,16 @@ export default function AdminScreen({ navigation }: Props) {
                         style={s.staffAvatar}
                         onPress={isEditing ? () => pickPhoto(true) : undefined}
                       >
-                        {isEditing && editForm.photoUri ? (
+                        {photoUploadingId === staff.id ? (
+                          <ActivityIndicator color={COLORS.primary} />
+                        ) : isEditing && editForm.photoUri ? (
                           <Image source={{ uri: editForm.photoUri }} style={s.staffAvatarImg} />
                         ) : !isEditing && staff.photoUri ? (
                           <Image source={{ uri: staff.photoUri }} style={s.staffAvatarImg} />
                         ) : (
                           <Text style={{ fontSize: 26 }}>{isEditing ? editForm.emoji || staff.emoji : staff.emoji}</Text>
                         )}
-                        {isEditing && (
+                        {isEditing && photoUploadingId !== staff.id && (
                           <View style={s.photoEditBadge}>
                             <Text style={s.photoEditBadgeText}>📷</Text>
                           </View>
@@ -532,8 +561,12 @@ export default function AdminScreen({ navigation }: Props) {
                     {isEditing && (
                       <View style={s.editPanel}>
                         {/* Photo picker row */}
-                        <Pressable style={s.photoPickerBtn} onPress={() => pickPhoto(true)}>
-                          {editForm.photoUri ? (
+                        <Pressable style={s.photoPickerBtn} onPress={() => pickPhoto(true)} disabled={photoUploadingId === staff.id}>
+                          {photoUploadingId === staff.id ? (
+                            <View style={s.photoPickerPlaceholder}>
+                              <ActivityIndicator color={COLORS.primary} />
+                            </View>
+                          ) : editForm.photoUri ? (
                             <Image source={{ uri: editForm.photoUri }} style={s.photoPickerThumb} />
                           ) : (
                             <View style={s.photoPickerPlaceholder}>
@@ -542,7 +575,14 @@ export default function AdminScreen({ navigation }: Props) {
                           )}
                           <View style={{ flex: 1 }}>
                             <Text style={s.photoPickerLabel}>Profile Photo</Text>
-                            <Text style={s.photoPickerSub}>Tap to {editForm.photoUri ? 'change' : 'upload'} photo</Text>
+                            <Text style={s.photoPickerSub}>
+                              {photoUploadingId === staff.id
+                                ? 'Uploading…'
+                                : `Tap to ${editForm.photoUri ? 'change' : 'upload'} photo`}
+                            </Text>
+                            {photoError && photoUploadingId !== staff.id ? (
+                              <Text style={[s.photoPickerSub, { color: COLORS.error }]}>{photoError}</Text>
+                            ) : null}
                           </View>
                           <Text style={s.photoPickerArrow}>📷</Text>
                         </Pressable>

@@ -62,7 +62,7 @@ export default function BookingSuccessScreen({ route, navigation }: BookingSucce
           </View>
         </View>
 
-        <Text style={s.note}>We'll confirm your appointment shortly. See you at Quasar Salon!</Text>
+        <Text style={s.note}>Your appointment is confirmed and locked in. See you at Quasar Salon!</Text>
 
         <Pressable
           style={s.primaryBtn}

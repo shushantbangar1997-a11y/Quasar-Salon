@@ -24,56 +24,111 @@ async function getIdToken(): Promise<string | null> {
   return await user.getIdToken();
 }
 
-export async function apiGet(path: string, requiresAuth = false): Promise<unknown> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+async function buildHeaders(requiresAuth: boolean, extra?: Record<string, string>): Promise<Record<string, string>> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json', ...(extra ?? {}) };
   if (requiresAuth) {
     const token = await getIdToken();
     if (!token) throw new ApiError(401, 'Not signed in');
     headers.Authorization = `Bearer ${token}`;
   }
-  const res = await fetch(`${API_BASE_URL}${path}`, { headers });
+  return headers;
+}
+
+async function parseResponse(res: Response): Promise<unknown> {
   const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new ApiError(res.status, (json as Record<string, string>)?.error || `Request failed: ${res.status}`);
+  if (!res.ok) {
+    throw new ApiError(res.status, (json as Record<string, string>)?.error || `Request failed: ${res.status}`);
+  }
   return json;
+}
+
+export async function apiGet(path: string, requiresAuth = false): Promise<unknown> {
+  const headers = await buildHeaders(requiresAuth);
+  const res = await fetch(`${API_BASE_URL}${path}`, { headers });
+  return parseResponse(res);
 }
 
 export async function apiPatch(path: string, body: unknown, requiresAuth = false): Promise<unknown> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (requiresAuth) {
-    const token = await getIdToken();
-    if (!token) throw new ApiError(401, 'Not signed in');
-    headers.Authorization = `Bearer ${token}`;
-  }
-  const res = await fetch(`${API_BASE_URL}${path}`, {
-    method: 'PATCH',
-    headers,
-    body: JSON.stringify(body),
-  });
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new ApiError(res.status, (json as Record<string, string>)?.error || `Request failed: ${res.status}`);
-  return json;
+  const headers = await buildHeaders(requiresAuth);
+  const res = await fetch(`${API_BASE_URL}${path}`, { method: 'PATCH', headers, body: JSON.stringify(body) });
+  return parseResponse(res);
 }
 
-export async function apiPost(path: string, body: unknown, requiresAuth = false): Promise<unknown> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (requiresAuth) {
-    const token = await getIdToken();
-    if (!token) throw new ApiError(401, 'Not signed in');
-    headers.Authorization = `Bearer ${token}`;
-  }
-  const res = await fetch(`${API_BASE_URL}${path}`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(body),
-  });
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new ApiError(res.status, (json as Record<string, string>)?.error || `Request failed: ${res.status}`);
-  return json;
+export async function apiPost(path: string, body: unknown, requiresAuth = false, extraHeaders?: Record<string, string>): Promise<unknown> {
+  const headers = await buildHeaders(requiresAuth, extraHeaders);
+  const res = await fetch(`${API_BASE_URL}${path}`, { method: 'POST', headers, body: JSON.stringify(body) });
+  return parseResponse(res);
+}
+
+export async function apiPut(path: string, body: unknown, requiresAuth = false): Promise<unknown> {
+  const headers = await buildHeaders(requiresAuth);
+  const res = await fetch(`${API_BASE_URL}${path}`, { method: 'PUT', headers, body: JSON.stringify(body) });
+  return parseResponse(res);
+}
+
+export async function apiDelete(path: string, requiresAuth = false): Promise<unknown> {
+  const headers = await buildHeaders(requiresAuth);
+  const res = await fetch(`${API_BASE_URL}${path}`, { method: 'DELETE', headers });
+  return parseResponse(res);
+}
+
+/** ── User profile helpers ── */
+
+export interface UserProfileUpdates {
+  name?: string;
+  phone?: string;
+  photoUrl?: string;
+}
+
+export interface UserProfile {
+  id: string;
+  name?: string;
+  email?: string;
+  phone?: string;
+  photoUrl?: string;
+  role?: string;
+}
+
+export async function getMyProfile(): Promise<UserProfile> {
+  const data = await apiGet('/users/me', true);
+  return data as UserProfile;
+}
+
+export async function updateUserProfile(updates: UserProfileUpdates): Promise<unknown> {
+  return apiPut('/users/me', updates, true);
+}
+
+export async function deleteAccount(): Promise<void> {
+  await apiDelete('/users/me', true);
+}
+
+/** ── Admin helpers ── */
+
+export async function adminLogin(password: string): Promise<void> {
+  await apiPost('/admin/login', { password }, false);
+}
+
+export interface UploadStaffPhotoResult {
+  photoUrl: string;
+}
+
+export async function uploadStaffPhoto(
+  staffId: string,
+  adminPassword: string,
+  imageBase64: string,
+  contentType: string
+): Promise<UploadStaffPhotoResult> {
+  const result = await apiPost(
+    `/admin/staff/${encodeURIComponent(staffId)}/photo`,
+    { imageBase64, contentType },
+    false,
+    { 'x-admin-password': adminPassword }
+  );
+  return result as UploadStaffPhotoResult;
 }
 
 /** ── Quasar Salon helpers ── */
 
-/** Fetch all staff from the backend. Throws if API unavailable. */
 export async function fetchAllStaff(): Promise<StaffMember[]> {
   const data = await apiGet('/staff');
   return data as StaffMember[];
@@ -85,10 +140,6 @@ export interface SlotAvailability {
   slots: string[];
 }
 
-/**
- * Fetch available start slots for a single staff member on a date (YYYY-MM-DD).
- * Pass `duration` (minutes) to get only slots with enough consecutive windows.
- */
 export async function fetchStaffSlots(staffId: string, date: string, duration?: number): Promise<SlotAvailability> {
   const durationParam = duration ? `&duration=${duration}` : '';
   const data = await apiGet(`/staff/${staffId}/availability?date=${date}${durationParam}`);
@@ -110,10 +161,7 @@ export interface QuasarBookingPayload {
   date: string;
   dateLabel: string;
   services: QuasarServicePayloadItem[];
-  guests: Array<{
-    name: string;
-    services: QuasarServicePayloadItem[];
-  }>;
+  guests: Array<{ name: string; services: QuasarServicePayloadItem[] }>;
   total: number;
 }
 
@@ -127,7 +175,6 @@ export interface QuasarBookingResult {
   total: number;
 }
 
-/** Create a Quasar Salon booking via the backend (requires auth). */
 export async function createQuasarBooking(payload: QuasarBookingPayload): Promise<QuasarBookingResult> {
   const result = await apiPost('/bookings', payload, true);
   return result as QuasarBookingResult;
@@ -144,7 +191,6 @@ function cartItemToPayloadItem(item: CartItem): QuasarServicePayloadItem {
   };
 }
 
-/** Build the payload from cart guests + booking details. */
 export function buildQuasarBookingPayload(
   guests: Guest[],
   staffId: string,
@@ -155,20 +201,9 @@ export function buildQuasarBookingPayload(
 ): QuasarBookingPayload {
   const guestsPayload = guests
     .filter(g => g.items.length > 0)
-    .map(g => ({
-      name: g.name,
-      services: g.items.map(cartItemToPayloadItem),
-    }));
+    .map(g => ({ name: g.name, services: g.items.map(cartItemToPayloadItem) }));
 
   const allServices = guests.flatMap(g => g.items).map(cartItemToPayloadItem);
 
-  return {
-    staffId,
-    timeSlot,
-    date: dateIso,
-    dateLabel,
-    services: allServices,
-    guests: guestsPayload,
-    total,
-  };
+  return { staffId, timeSlot, date: dateIso, dateLabel, services: allServices, guests: guestsPayload, total };
 }

@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { signInWithCustomToken } from 'firebase/auth';
 import { auth } from '../firebase';
-import { API_BASE_URL } from '../api';
+import { API_BASE_URL, updateUserProfile } from '../api';
 import { COLORS, RADIUS } from '../theme';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation';
@@ -21,7 +21,7 @@ function formatCountdown(secs: number): string {
 }
 
 export default function OTPScreen({ route, navigation }: Props) {
-  const { email } = route.params;
+  const { email, phone } = route.params;
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -49,6 +49,9 @@ export default function OTPScreen({ route, navigation }: Props) {
       if (!res.ok) { setError(data.error ?? 'Verification failed'); return; }
       if (!auth) { navigation.navigate('MainTabs'); return; }
       await signInWithCustomToken(auth, data.token);
+      if (phone) {
+        try { await updateUserProfile({ phone }); } catch { /* non-fatal */ }
+      }
       navigation.navigate('MainTabs');
     } catch (e) {
       setError('Network error. Please try again.');

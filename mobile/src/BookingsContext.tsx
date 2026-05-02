@@ -10,11 +10,18 @@ import { onAuthStateChanged, User } from 'firebase/auth';
 import { CartItem } from './CartContext';
 import { StaffMember } from './quasarData';
 import { auth, db, isFirebaseConfigured } from './firebase';
-import { API_BASE_URL, apiPatch } from './api';
+import { apiPatch } from './api';
+import { logger } from './logger';
+
+export interface BookingGuest {
+  name: string;
+  services: CartItem[];
+}
 
 export interface ConfirmedBooking {
   id: string;
   services: CartItem[];
+  guests?: BookingGuest[];
   date: string;
   dateIso?: string;
   time: string;
@@ -33,37 +40,30 @@ interface BookingsContextType {
 
 const BookingsContext = createContext<BookingsContextType | null>(null);
 
-const DEMO_BOOKINGS: ConfirmedBooking[] = [
-  {
-    id: 'demo-b3',
-    services: [
-      { service: { id: 'hc-8', name: "Men's Haircut", price: 599, durationMins: 30, gender: 'Men' }, category: { id: 'hair-care', name: 'Hair Care', icon: '💇‍♀️', imageUrl: '', services: [] }, qty: 1 },
-      { service: { id: 'hc-10', name: 'Beard Color', price: 999, durationMins: 30, gender: 'Men' }, category: { id: 'hair-care', name: 'Hair Care', icon: '💇‍♀️', imageUrl: '', services: [] }, qty: 1 },
-    ],
-    date: 'Mon, Apr 14',
-    time: '10:00 AM',
-    stylist: { id: 'staff-2', name: 'Rahul Verma', role: 'Expert Barber', emoji: '✂️', specialties: ['Hair Care'], experience: '6 years', available: true, schedule: {} },
-    total: 1598,
-    status: 'completed',
-    createdAt: Date.now() - 1000 * 60 * 60 * 24 * 10,
-  },
-  {
-    id: 'demo-b4',
-    services: [
-      { service: { id: 'mu-3', name: 'HD Make-Up (Party)', price: 4499, durationMins: 75, gender: 'Women' }, category: { id: 'makeup', name: 'Make-Up', icon: '💄', imageUrl: '', services: [] }, qty: 1 },
-      { service: { id: 'mu-12', name: 'Hair Do (With Bun)', price: 1499, durationMins: 60, gender: 'Women' }, category: { id: 'makeup', name: 'Make-Up', icon: '💄', imageUrl: '', services: [] }, qty: 1 },
-    ],
-    date: 'Sat, Apr 5',
-    time: '8:00 AM',
-    stylist: { id: 'staff-7', name: 'Kavita Joshi', role: 'Makeup Artist', emoji: '💄', specialties: ['Make-Up'], experience: '12 years', available: true, schedule: {} },
-    total: 5998,
-    status: 'completed',
-    createdAt: Date.now() - 1000 * 60 * 60 * 24 * 20,
-  },
-];
+type FlatService = { id?: string; name?: string; price?: number; durationMins?: number; category?: string; qty?: number };
+
+function flatToCartItem(s: FlatService): CartItem {
+  return {
+    service: {
+      id: s.id ?? '',
+      name: s.name ?? 'Service',
+      price: s.price ?? 0,
+      durationMins: s.durationMins ?? 30,
+      gender: 'Both' as const,
+    },
+    category: {
+      id: s.category ?? '',
+      name: s.category ?? '',
+      icon: '✂️',
+      imageUrl: '',
+      services: [],
+    },
+    qty: s.qty ?? 1,
+  };
+}
 
 export function BookingsProvider({ children }: { children: ReactNode }) {
-  const [bookings, setBookings] = useState<ConfirmedBooking[]>(DEMO_BOOKINGS);
+  const [bookings, setBookings] = useState<ConfirmedBooking[]>([]);
   const [isRealTime, setIsRealTime] = useState(false);
   const bookingsUnsubRef = useRef<Unsubscribe | null>(null);
 
@@ -78,46 +78,32 @@ export function BookingsProvider({ children }: { children: ReactNode }) {
 
       if (!user || !db) {
         setIsRealTime(false);
-        setBookings(DEMO_BOOKINGS);
+        setBookings([]);
         return;
       }
 
-      const q = query(
-        collection(db, 'bookings'),
-        where('userId', '==', user.uid)
-      );
+      const q = query(collection(db, 'bookings'), where('userId', '==', user.uid));
 
       const unsubBookings = onSnapshot(
         q,
         snap => {
           const firestoreBookings: ConfirmedBooking[] = snap.docs.map(doc => {
             const data = doc.data();
-
-            // Backend stores services as flat objects: {id,name,price,durationMins,category,qty}
-            // UI expects CartItem shape: {service:{id,name,price,durationMins,gender}, category:{id,name,icon,services[]}, qty}
-            type FlatService = { id?: string; name?: string; price?: number; durationMins?: number; category?: string; qty?: number };
             const rawServices = (data.services as FlatService[] | undefined) ?? [];
-            const services: CartItem[] = rawServices.map(s => ({
-              service: {
-                id: s.id ?? '',
-                name: s.name ?? 'Service',
-                price: s.price ?? 0,
-                durationMins: s.durationMins ?? 30,
-                gender: 'Both' as const,
-              },
-              category: {
-                id: s.category ?? '',
-                name: s.category ?? '',
-                icon: '✂️',
-                imageUrl: '',
-                services: [],
-              },
-              qty: s.qty ?? 1,
-            }));
+            const services: CartItem[] = rawServices.map(flatToCartItem);
+
+            const rawGuests = data.guests as Array<{ name?: string; services?: FlatService[] }> | undefined;
+            const guests: BookingGuest[] | undefined = Array.isArray(rawGuests) && rawGuests.length > 0
+              ? rawGuests.map(g => ({
+                  name: typeof g.name === 'string' && g.name.length > 0 ? g.name : 'Guest',
+                  services: (g.services ?? []).map(flatToCartItem),
+                }))
+              : undefined;
 
             return {
               id: doc.id,
               services,
+              guests,
               date: (data.dateLabel as string) ?? (data.date as string) ?? '',
               dateIso: (data.date as string | undefined),
               time: (data.timeSlot as string) ?? '',
@@ -131,13 +117,11 @@ export function BookingsProvider({ children }: { children: ReactNode }) {
           });
 
           firestoreBookings.sort((a, b) => b.createdAt - a.createdAt);
-          // Show real data (even if empty) — do not fall back to DEMO_BOOKINGS
           setBookings(firestoreBookings);
           setIsRealTime(true);
         },
         err => {
-          console.warn('[BookingsContext] onSnapshot error:', err);
-          // Leave existing state intact on error; disable real-time indicator
+          logger.warn('[BookingsContext] onSnapshot error:', err);
           setIsRealTime(false);
         }
       );
@@ -162,15 +146,8 @@ export function BookingsProvider({ children }: { children: ReactNode }) {
   };
 
   const cancelBooking = async (bookingId: string): Promise<void> => {
-    if (API_BASE_URL) {
-      await apiPatch(`/bookings/${bookingId}/status`, { status: 'cancelled' }, true);
-      // onSnapshot will automatically reflect the updated status
-    } else {
-      // Offline / demo mode: update local state directly
-      setBookings(prev =>
-        prev.map(b => b.id === bookingId ? { ...b, status: 'cancelled' as const } : b)
-      );
-    }
+    await apiPatch(`/bookings/${bookingId}/status`, { status: 'cancelled' }, true);
+    // onSnapshot will reflect the updated status automatically.
   };
 
   return (

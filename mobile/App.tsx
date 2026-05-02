@@ -24,6 +24,11 @@ import SignUpScreen from './src/screens/SignUpScreen';
 import OTPScreen from './src/screens/OTPScreen';
 import SplashScreen from './src/screens/SplashScreen';
 import AdminScreen from './src/screens/AdminScreen';
+import EditProfileScreen from './src/screens/EditProfileScreen';
+import DeleteAccountScreen from './src/screens/DeleteAccountScreen';
+import HelpContactScreen from './src/screens/HelpContactScreen';
+import PrivacyPolicyScreen from './src/screens/PrivacyPolicyScreen';
+import TermsScreen from './src/screens/TermsScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<TabParamList>();
@@ -72,6 +77,11 @@ export default function App() {
           <Stack.Screen name="SignUp" component={SignUpScreen} />
           <Stack.Screen name="OTP" component={OTPScreen} />
           <Stack.Screen name="Admin" component={AdminScreen} />
+          <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+          <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
+          <Stack.Screen name="HelpContact" component={HelpContactScreen} />
+          <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
+          <Stack.Screen name="Terms" component={TermsScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </CartProvider>
