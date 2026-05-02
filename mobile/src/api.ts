@@ -163,6 +163,7 @@ export interface QuasarBookingPayload {
   services: QuasarServicePayloadItem[];
   guests: Array<{ name: string; services: QuasarServicePayloadItem[] }>;
   total: number;
+  rescheduledFromBookingId?: string;
 }
 
 export interface QuasarBookingResult {
@@ -197,7 +198,8 @@ export function buildQuasarBookingPayload(
   timeSlot: string,
   dateIso: string,
   dateLabel: string,
-  total: number
+  total: number,
+  rescheduledFromBookingId?: string
 ): QuasarBookingPayload {
   const guestsPayload = guests
     .filter(g => g.items.length > 0)
@@ -205,5 +207,14 @@ export function buildQuasarBookingPayload(
 
   const allServices = guests.flatMap(g => g.items).map(cartItemToPayloadItem);
 
-  return { staffId, timeSlot, date: dateIso, dateLabel, services: allServices, guests: guestsPayload, total };
+  return {
+    staffId,
+    timeSlot,
+    date: dateIso,
+    dateLabel,
+    services: allServices,
+    guests: guestsPayload,
+    total,
+    ...(rescheduledFromBookingId ? { rescheduledFromBookingId } : {}),
+  };
 }

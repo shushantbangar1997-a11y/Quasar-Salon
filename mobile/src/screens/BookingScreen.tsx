@@ -129,7 +129,8 @@ export default function BookingScreen({ navigation, route }: BookingScreenProps)
         selectedTime,
         selectedDate.iso,
         selectedDate.label,
-        totalPrice
+        totalPrice,
+        reschedule?.bookingId
       );
       const result = await createQuasarBooking(payload);
 

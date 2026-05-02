@@ -170,6 +170,10 @@ export interface CreateQuasarBookingRequest {
   services: QuasarServiceItem[];
   guests?: QuasarBookingGuest[];
   total: number;
+  /** When set, the new booking replaces this prior booking; the prior booking is
+   * cancelled server-side and the user receives a "rescheduled" notification
+   * instead of a generic cancellation. */
+  rescheduledFromBookingId?: string;
 }
 
 export interface UpdateBookingStatusRequest {

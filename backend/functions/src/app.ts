@@ -221,6 +221,127 @@ function bookingStartTime(dateStr: string, timeSlot: string): Date | null {
   }
 }
 
+/** ──── Notification helpers ──── */
+
+/** Look up the user's email — tries Firebase Auth first, then the Firestore users doc. */
+async function lookupUserEmail(uid: string): Promise<string | null> {
+  try {
+    const authUser = await admin.auth().getUser(uid);
+    if (isNonEmptyString(authUser.email)) return authUser.email;
+  } catch (e) {
+    // fall through to Firestore lookup
+  }
+  try {
+    const snap = await db.collection('users').doc(uid).get();
+    const email = snap.exists ? (snap.data()?.email as string | undefined) : undefined;
+    return isNonEmptyString(email) ? email : null;
+  } catch {
+    return null;
+  }
+}
+
+async function lookupStaffName(staffId: string | undefined): Promise<string> {
+  if (!isNonEmptyString(staffId)) return 'your stylist';
+  try {
+    const snap = await db.collection('staff').doc(staffId).get();
+    const name = snap.exists ? (snap.data()?.name as string | undefined) : undefined;
+    return isNonEmptyString(name) ? name : 'your stylist';
+  } catch {
+    return 'your stylist';
+  }
+}
+
+interface CancellationEmailInput {
+  toEmail: string;
+  dateLabel: string;
+  timeSlot: string;
+  stylistName: string;
+  cancelledByStaff: boolean;
+}
+
+interface RescheduleEmailInput {
+  toEmail: string;
+  oldDateLabel: string;
+  oldTimeSlot: string;
+  newDateLabel: string;
+  newTimeSlot: string;
+  stylistName: string;
+}
+
+/** Fire-and-forget reschedule email. */
+async function sendBookingRescheduledEmail(input: RescheduleEmailInput): Promise<void> {
+  if (!process.env.OTP_EMAIL_USER || !process.env.OTP_EMAIL_PASS) {
+    console.warn('[notify] Skipping reschedule email — OTP_EMAIL_USER/OTP_EMAIL_PASS not configured');
+    return;
+  }
+  try {
+    const transport = makeTransport();
+    await transport.sendMail({
+      from: `"Quasar Salon" <${process.env.OTP_EMAIL_USER}>`,
+      to: input.toEmail,
+      subject: 'Your Quasar Salon appointment has been rescheduled',
+      html: `
+        <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:32px;background:#FAF8F5;border-radius:12px">
+          <h2 style="color:#1A1A1A;margin-bottom:8px">Quasar Salon</h2>
+          <p style="color:#5C4033;margin-bottom:20px">Your appointment has been rescheduled. Here are the new details — we look forward to seeing you.</p>
+          <div style="background:#fff;border:1px solid #E8DDD4;border-radius:10px;padding:20px;margin-bottom:14px">
+            <p style="margin:0 0 8px 0;color:#9C8878;font-size:12px;text-transform:uppercase;letter-spacing:1px">New appointment</p>
+            <p style="margin:0 0 6px 0;color:#111;font-size:16px"><strong>Date:</strong> ${input.newDateLabel}</p>
+            <p style="margin:0 0 6px 0;color:#111;font-size:16px"><strong>Time:</strong> ${input.newTimeSlot}</p>
+            <p style="margin:0;color:#111;font-size:16px"><strong>Stylist:</strong> ${input.stylistName}</p>
+          </div>
+          <div style="background:#fff;border:1px dashed #E8DDD4;border-radius:10px;padding:14px">
+            <p style="margin:0 0 4px 0;color:#9C8878;font-size:11px;text-transform:uppercase;letter-spacing:1px">Replaces</p>
+            <p style="margin:0;color:#5C4033;font-size:13px"><s>${input.oldDateLabel} at ${input.oldTimeSlot}</s></p>
+          </div>
+          <p style="color:#9C8878;font-size:12px;margin-top:24px">If you did not request this change, please contact the salon right away.</p>
+        </div>
+      `,
+    });
+  } catch (err) {
+    console.error('[notify] Failed to send reschedule email:', err);
+  }
+}
+
+/** Fire-and-forget cancellation email. Logs (does not throw) on failure so the
+ * PATCH response is never blocked by SMTP issues. */
+async function sendBookingCancelledEmail(input: CancellationEmailInput): Promise<void> {
+  if (!process.env.OTP_EMAIL_USER || !process.env.OTP_EMAIL_PASS) {
+    console.warn('[notify] Skipping cancellation email — OTP_EMAIL_USER/OTP_EMAIL_PASS not configured');
+    return;
+  }
+  const subject = input.cancelledByStaff
+    ? 'Your Quasar Salon appointment was cancelled by the salon'
+    : 'Your Quasar Salon appointment is cancelled';
+  const intro = input.cancelledByStaff
+    ? 'The salon has cancelled the following appointment. We are sorry for the inconvenience — please book another time at your convenience.'
+    : 'Your appointment has been cancelled as requested. We hope to see you again soon.';
+
+  try {
+    const transport = makeTransport();
+    await transport.sendMail({
+      from: `"Quasar Salon" <${process.env.OTP_EMAIL_USER}>`,
+      to: input.toEmail,
+      subject,
+      html: `
+        <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:32px;background:#FAF8F5;border-radius:12px">
+          <h2 style="color:#1A1A1A;margin-bottom:8px">Quasar Salon</h2>
+          <p style="color:#5C4033;margin-bottom:20px">${intro}</p>
+          <div style="background:#fff;border:1px solid #E8DDD4;border-radius:10px;padding:20px">
+            <p style="margin:0 0 8px 0;color:#9C8878;font-size:12px;text-transform:uppercase;letter-spacing:1px">Cancelled appointment</p>
+            <p style="margin:0 0 6px 0;color:#111;font-size:16px"><strong>Date:</strong> ${input.dateLabel}</p>
+            <p style="margin:0 0 6px 0;color:#111;font-size:16px"><strong>Time:</strong> ${input.timeSlot}</p>
+            <p style="margin:0;color:#111;font-size:16px"><strong>Stylist:</strong> ${input.stylistName}</p>
+          </div>
+          <p style="color:#9C8878;font-size:12px;margin-top:24px">If this was a mistake, please contact the salon to rebook.</p>
+        </div>
+      `,
+    });
+  } catch (err) {
+    console.error('[notify] Failed to send cancellation email:', err);
+  }
+}
+
 /** ──── Routes ──── */
 
 app.get('/health', (_req, res) => {
@@ -867,6 +988,74 @@ app.post('/bookings', authenticateUser, async (req, res) => {
 
       const created = await bookingRef.get();
       res.status(201).json({ id: created.id, ...created.data() });
+
+      // If this booking replaces an earlier one (reschedule flow), cancel the
+      // old booking, free its slots, and notify the user with a "rescheduled"
+      // email containing the NEW date/time/stylist. Done after the response so
+      // SMTP latency never blocks the client.
+      const rescheduledFromId = isNonEmptyString(quasarBody.rescheduledFromBookingId)
+        ? quasarBody.rescheduledFromBookingId.trim()
+        : null;
+      if (rescheduledFromId) {
+        void (async () => {
+          try {
+            const oldRef = db.collection('bookings').doc(rescheduledFromId);
+            const oldSnap = await oldRef.get();
+            if (!oldSnap.exists) {
+              console.warn(`[notify] reschedule: prior booking ${rescheduledFromId} not found`);
+              return;
+            }
+            const oldData = oldSnap.data()!;
+            // Only cancel if the requesting user owns the prior booking
+            if (oldData.userId !== uid) {
+              console.warn(`[notify] reschedule: prior booking ${rescheduledFromId} not owned by ${uid}; skipping`);
+              return;
+            }
+
+            const oldDateLabel = (oldData.dateLabel as string | undefined) ?? (oldData.date as string | undefined) ?? '';
+            const oldTimeSlot = (oldData.timeSlot as string | undefined) ?? '';
+
+            // Mark cancelled (suppress the standard cancellation email — we send a
+            // reschedule email instead, which is a better UX).
+            if (oldData.status !== 'cancelled') {
+              await oldRef.set({
+                status: 'cancelled',
+                rescheduleSuppressCancelEmail: true,
+                ...nowTimestamps(),
+              }, { merge: true });
+
+              // Free the old slots
+              const oldSlotsBlocked = oldData.slotsBlocked as string[] | undefined;
+              const oldStaffId = oldData.staffId as string | undefined;
+              const oldDateStr = oldData.date as string | undefined;
+              if (Array.isArray(oldSlotsBlocked) && isNonEmptyString(oldStaffId) && isNonEmptyString(oldDateStr)) {
+                await Promise.all(oldSlotsBlocked.map(slot =>
+                  db.collection('blocked_slots').doc(blockedSlotDocId(oldStaffId!, oldDateStr!, slot)).delete()
+                ));
+              }
+            }
+
+            const [toEmail, stylistName] = await Promise.all([
+              lookupUserEmail(uid),
+              lookupStaffName(staffId),
+            ]);
+            if (!toEmail) {
+              console.warn(`[notify] reschedule: no email on file for user ${uid}`);
+              return;
+            }
+            await sendBookingRescheduledEmail({
+              toEmail,
+              oldDateLabel,
+              oldTimeSlot,
+              newDateLabel: quasarBody.dateLabel.trim(),
+              newTimeSlot: timeSlot,
+              stylistName,
+            });
+          } catch (err) {
+            console.error('[notify] reschedule post-processing failed:', err);
+          }
+        })();
+      }
     } catch (err: unknown) {
       if (err instanceof Error && err.message === 'SLOT_TAKEN') {
         return void res.status(409).json({ error: 'One or more time slots in your booking window are no longer available. Please choose another time.' });
@@ -1019,6 +1208,36 @@ app.patch('/bookings/:id/status', authenticateUser, async (req, res) => {
         db.collection('blocked_slots').doc(blockedSlotDocId(staffId!, dateStr!, slot)).delete()
       );
       await Promise.all(deleteOps);
+    }
+
+    // Notify the booking owner. Fire-and-forget — never block the API response on email delivery.
+    // Guard against duplicate sends: skip if the booking was already cancelled before this PATCH
+    // (idempotent re-PATCH) or if a reschedule flow already handled the user's notification.
+    const previouslyCancelled = data.status === 'cancelled';
+    const suppressedByReschedule = data.rescheduleSuppressCancelEmail === true;
+    const ownerId = data.userId as string | undefined;
+    const wasCancelledByStaff = ownerId !== uid;
+    const shouldNotify = !previouslyCancelled && !suppressedByReschedule;
+    const dateLabel = (data.dateLabel as string | undefined) ?? (data.date as string | undefined) ?? 'your appointment date';
+    const timeSlot = (data.timeSlot as string | undefined) ?? 'your appointment time';
+    if (isNonEmptyString(ownerId) && shouldNotify) {
+      void (async () => {
+        const [toEmail, stylistName] = await Promise.all([
+          lookupUserEmail(ownerId),
+          lookupStaffName(data.staffId as string | undefined),
+        ]);
+        if (!toEmail) {
+          console.warn(`[notify] No email on file for user ${ownerId}; skipping cancellation notice for booking ${bookingId}`);
+          return;
+        }
+        await sendBookingCancelledEmail({
+          toEmail,
+          dateLabel,
+          timeSlot,
+          stylistName,
+          cancelledByStaff: wasCancelledByStaff,
+        });
+      })();
     }
   }
 
