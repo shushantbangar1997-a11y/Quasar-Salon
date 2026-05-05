@@ -48,8 +48,8 @@ export async function apiGet(path: string, requiresAuth = false): Promise<unknow
   return parseResponse(res);
 }
 
-export async function apiPatch(path: string, body: unknown, requiresAuth = false): Promise<unknown> {
-  const headers = await buildHeaders(requiresAuth);
+export async function apiPatch(path: string, body: unknown, requiresAuth = false, extraHeaders?: Record<string, string>): Promise<unknown> {
+  const headers = await buildHeaders(requiresAuth, extraHeaders);
   const res = await fetch(`${API_BASE_URL}${path}`, { method: 'PATCH', headers, body: JSON.stringify(body) });
   return parseResponse(res);
 }
@@ -130,8 +130,54 @@ export async function uploadStaffPhoto(
 /** ── Quasar Salon helpers ── */
 
 export async function fetchAllStaff(): Promise<StaffMember[]> {
-  const data = await apiGet('/staff');
-  return data as StaffMember[];
+  const data = await apiGet('/staff') as Array<Record<string, unknown>>;
+  return data.map(d => ({
+    ...d,
+    photoUri: (d.photoUri as string | undefined) ?? (d.photoUrl as string | undefined),
+  })) as StaffMember[];
+}
+
+export interface StaffUpdates {
+  name?: string;
+  role?: string;
+  experience?: string;
+  emoji?: string;
+  specialties?: string[];
+  available?: boolean;
+}
+
+export async function patchStaff(
+  staffId: string,
+  adminPassword: string,
+  updates: StaffUpdates
+): Promise<void> {
+  await apiPatch(
+    `/admin/staff/${encodeURIComponent(staffId)}`,
+    updates,
+    false,
+    { 'x-admin-password': adminPassword }
+  );
+}
+
+export async function addStaffRemote(
+  adminPassword: string,
+  member: StaffMember
+): Promise<void> {
+  await apiPost(
+    '/admin/staff',
+    {
+      id: member.id,
+      name: member.name,
+      role: member.role,
+      experience: member.experience,
+      emoji: member.emoji,
+      specialties: member.specialties,
+      available: member.available,
+      schedule: member.schedule,
+    },
+    false,
+    { 'x-admin-password': adminPassword }
+  );
 }
 
 export interface SlotAvailability {

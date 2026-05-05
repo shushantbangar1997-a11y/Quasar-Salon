@@ -1,8 +1,11 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { QUASAR_STAFF, StaffMember } from './quasarData';
+import { fetchAllStaff } from './api';
 
 interface StaffContextValue {
   staffList: StaffMember[];
+  staffLoading: boolean;
+  refreshStaff: () => Promise<void>;
   toggleAvailability: (id: string) => void;
   addStaff: (member: StaffMember) => void;
   updateStaff: (id: string, updates: Partial<StaffMember>) => void;
@@ -10,6 +13,8 @@ interface StaffContextValue {
 
 const StaffContext = createContext<StaffContextValue>({
   staffList: QUASAR_STAFF,
+  staffLoading: false,
+  refreshStaff: async () => {},
   toggleAvailability: () => {},
   addStaff: () => {},
   updateStaff: () => {},
@@ -17,6 +22,24 @@ const StaffContext = createContext<StaffContextValue>({
 
 export function StaffProvider({ children }: { children: React.ReactNode }) {
   const [staffList, setStaffList] = useState<StaffMember[]>([...QUASAR_STAFF]);
+  const [staffLoading, setStaffLoading] = useState(true);
+
+  const refreshStaff = useCallback(async () => {
+    try {
+      const live = await fetchAllStaff();
+      if (live && live.length > 0) {
+        setStaffList(live);
+      }
+    } catch {
+      // fall back to whatever is already in local state
+    } finally {
+      setStaffLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshStaff();
+  }, [refreshStaff]);
 
   const toggleAvailability = (id: string) => {
     setStaffList(prev =>
@@ -35,7 +58,7 @@ export function StaffProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <StaffContext.Provider value={{ staffList, toggleAvailability, addStaff, updateStaff }}>
+    <StaffContext.Provider value={{ staffList, staffLoading, refreshStaff, toggleAvailability, addStaff, updateStaff }}>
       {children}
     </StaffContext.Provider>
   );

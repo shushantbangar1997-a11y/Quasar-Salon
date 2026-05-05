@@ -8,6 +8,7 @@ import { useAdmin } from '../AdminContext';
 import { useBookings, ConfirmedBooking } from '../BookingsContext';
 import { useStaff } from '../StaffContext';
 import { StaffMember } from '../quasarData';
+import { patchStaff, addStaffRemote } from '../api';
 import { COLORS, RADIUS, SHADOW } from '../theme';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation';
@@ -141,15 +142,25 @@ export default function AdminScreen({ navigation }: Props) {
 
   const saveEdit = () => {
     if (!editForm.name.trim() || !editForm.role.trim()) return;
-    updateStaff(editingId!, {
+    const updates = {
       name: editForm.name.trim(),
       role: editForm.role.trim(),
       experience: editForm.experience.trim() || 'New hire',
       emoji: editForm.emoji,
       specialties: editForm.specialties,
       photoUri: editForm.photoUri,
-    });
+    };
+    updateStaff(editingId!, updates);
     setEditingId(null);
+    if (adminPassword) {
+      void patchStaff(editingId!, adminPassword, {
+        name: updates.name,
+        role: updates.role,
+        experience: updates.experience,
+        emoji: updates.emoji,
+        specialties: updates.specialties,
+      }).catch(err => console.error('[admin] patchStaff failed:', err));
+    }
   };
 
   const pickPhoto = async (_forEdit: boolean) => {
@@ -261,6 +272,11 @@ export default function AdminScreen({ navigation }: Props) {
     setForm({ ...BLANK_FORM });
     setFormError('');
     setShowAddForm(false);
+
+    if (adminPassword) {
+      void addStaffRemote(adminPassword, newMember)
+        .catch(err => console.error('[admin] addStaffRemote failed:', err));
+    }
   };
 
   const FILTERS = ['all', 'pending', 'confirmed', 'completed', 'cancelled'];
@@ -542,7 +558,14 @@ export default function AdminScreen({ navigation }: Props) {
                         </Text>
                         <Switch
                           value={staff.available}
-                          onValueChange={() => toggleAvailability(staff.id)}
+                          onValueChange={() => {
+                            const newAvailable = !staff.available;
+                            toggleAvailability(staff.id);
+                            if (adminPassword) {
+                              void patchStaff(staff.id, adminPassword, { available: newAvailable })
+                                .catch(err => console.error('[admin] patchStaff(available) failed:', err));
+                            }
+                          }}
                           trackColor={{ false: COLORS.border, true: COLORS.primary }}
                           thumbColor="#FFFFFF"
                         />

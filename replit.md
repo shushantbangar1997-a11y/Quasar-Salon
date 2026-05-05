@@ -50,7 +50,7 @@ mobile/
     api.ts                       — API client for backend (auth + admin + bookings)
     AdminContext.tsx             — Admin session: backend-verified password, kept in memory
     BookingsContext.tsx          — Real-time bookings via Firestore onSnapshot (no demo fallback)
-    StaffContext.tsx             — Local staff list (mutated by admin edits)
+    StaffContext.tsx             — Staff list loaded live from Firestore on mount; falls back to static seed; exposes refreshStaff()
     screens/EditProfileScreen.tsx       — Update name + phone (Apple/Google compliance)
     screens/DeleteAccountScreen.tsx     — Permanent delete with type-DELETE confirmation
     screens/HelpContactScreen.tsx       — Support email + phone + FAQs
@@ -67,6 +67,8 @@ mobile/
 - `BookingsContext` and `BookingScreen` no longer fall back to demo data — every booking, slot, and cancellation goes through the backend. Errors surface in the UI instead of silently succeeding.
 - `BookingScreen` is duration-aware: it requests slots with the cart's total duration so multi-service bookings don't double-book stylists, and re-validates the slot just before `POST /bookings`.
 - Admin login (`POST /admin/login`) is rate-limited at the server's general `/api` rate limiter (100 req/15min/IP). OTP send/verify have a stricter rate limit (3 per email + 10 per IP per 15min). Cancellations within `CANCELLATION_GRACE_HOURS` (default 2h) of the appointment are blocked for the booking's owner.
+- Staff edits persist to Firestore: `PATCH /admin/staff/:id` (name/role/experience/emoji/specialties/available) and `POST /admin/staff` (create new member) — both require `x-admin-password` header. AdminScreen wires `saveEdit`, `handleAddEmployee`, and the availability toggle to call these endpoints (optimistic local update + fire-and-forget backend call).
+- Booking confirmation emails: after every fresh (non-reschedule) `POST /bookings`, a fire-and-forget `sendBookingConfirmedEmail` sends date/time/stylist/services/total to the user. Reschedule bookings still receive the existing "rescheduled" email. Both use the shared nodemailer transport.
 
 ## Replit setup
 

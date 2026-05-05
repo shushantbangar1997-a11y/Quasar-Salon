@@ -7,12 +7,14 @@ import {
   BookingStatus,
   CreateBookingRequest,
   CreateQuasarBookingRequest,
+  CreateStaffRequest,
   FavouritesRequest,
   Provider,
   QuasarBookingGuest,
   QuasarStaff,
   UpsertProviderRequest,
   UpdateBookingStatusRequest,
+  UpdateStaffRequest,
   UpdateUserRequest,
   User,
   UserRole
@@ -339,6 +341,50 @@ async function sendBookingCancelledEmail(input: CancellationEmailInput): Promise
     });
   } catch (err) {
     console.error('[notify] Failed to send cancellation email:', err);
+  }
+}
+
+/** ──── Notification helpers (continued) ──── */
+
+interface ConfirmationEmailInput {
+  toEmail: string;
+  dateLabel: string;
+  timeSlot: string;
+  stylistName: string;
+  serviceNames: string;
+  total: number;
+}
+
+async function sendBookingConfirmedEmail(input: ConfirmationEmailInput): Promise<void> {
+  if (!process.env.OTP_EMAIL_USER || !process.env.OTP_EMAIL_PASS) {
+    console.warn('[notify] Skipping confirmation email — OTP_EMAIL_USER/OTP_EMAIL_PASS not configured');
+    return;
+  }
+  try {
+    const transport = makeTransport();
+    await transport.sendMail({
+      from: `"Quasar Salon" <${process.env.OTP_EMAIL_USER}>`,
+      to: input.toEmail,
+      subject: 'Your Quasar Salon appointment is confirmed',
+      html: `
+        <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:32px;background:#FAF8F5;border-radius:12px">
+          <h2 style="color:#1A1A1A;margin-bottom:8px">Quasar Salon</h2>
+          <p style="color:#5C4033;margin-bottom:20px">Your appointment is confirmed — we look forward to welcoming you.</p>
+          <div style="background:#fff;border:1px solid #E8DDD4;border-radius:10px;padding:20px;margin-bottom:14px">
+            <p style="margin:0 0 8px 0;color:#9C8878;font-size:12px;text-transform:uppercase;letter-spacing:1px">Appointment details</p>
+            <p style="margin:0 0 6px 0;color:#111;font-size:16px"><strong>Date:</strong> ${input.dateLabel}</p>
+            <p style="margin:0 0 6px 0;color:#111;font-size:16px"><strong>Time:</strong> ${input.timeSlot}</p>
+            <p style="margin:0 0 6px 0;color:#111;font-size:16px"><strong>Stylist:</strong> ${input.stylistName}</p>
+            <p style="margin:0 0 10px 0;color:#111;font-size:16px"><strong>Services:</strong> ${input.serviceNames}</p>
+            <p style="margin:0;color:#C9A84C;font-size:20px;font-weight:800">Total: &#8377;${input.total.toLocaleString('en-IN')}</p>
+          </div>
+          <p style="color:#5C4033;font-size:13px">Need to reschedule or cancel? Open the Quasar Salon app and visit My Bookings. Cancellations must be made at least 2 hours before your appointment.</p>
+          <p style="color:#9C8878;font-size:12px;margin-top:16px">Quasar Salon &mdash; thank you for choosing us!</p>
+        </div>
+      `,
+    });
+  } catch (err) {
+    console.error('[notify] Failed to send booking confirmation email:', err);
   }
 }
 
@@ -675,6 +721,93 @@ app.post('/admin/staff/:id/photo', async (req, res) => {
   } catch (err) {
     console.error('POST /admin/staff/:id/photo error:', err);
     res.status(500).json({ error: 'Failed to upload staff photo' });
+  }
+});
+
+/** PATCH /admin/staff/:id — update editable staff fields in Firestore */
+app.patch('/admin/staff/:id', async (req, res) => {
+  if (!requireAdminPassword(req, res)) return;
+
+  const staffId = req.params.id;
+  if (!isNonEmptyString(staffId)) return void badRequest(res, 'staffId is required');
+
+  const body = req.body as UpdateStaffRequest;
+  const updates: Record<string, unknown> = {};
+
+  if (body.name !== undefined) {
+    if (!isNonEmptyString(body.name)) return void badRequest(res, 'name must be a non-empty string');
+    updates.name = body.name.trim();
+  }
+  if (body.role !== undefined) {
+    if (!isNonEmptyString(body.role)) return void badRequest(res, 'role must be a non-empty string');
+    updates.role = body.role.trim();
+  }
+  if (body.experience !== undefined) {
+    if (!isNonEmptyString(body.experience)) return void badRequest(res, 'experience must be a non-empty string');
+    updates.experience = body.experience.trim();
+  }
+  if (body.emoji !== undefined) {
+    if (!isNonEmptyString(body.emoji)) return void badRequest(res, 'emoji must be a non-empty string');
+    updates.emoji = body.emoji.trim();
+  }
+  if (body.specialties !== undefined) {
+    if (!Array.isArray(body.specialties)) return void badRequest(res, 'specialties must be an array');
+    updates.specialties = body.specialties.map(String);
+  }
+  if (body.available !== undefined) {
+    if (typeof body.available !== 'boolean') return void badRequest(res, 'available must be a boolean');
+    updates.available = body.available;
+  }
+
+  if (Object.keys(updates).length === 0) return void badRequest(res, 'No valid fields to update');
+
+  try {
+    const ref = db.collection('staff').doc(staffId);
+    const snap = await ref.get();
+    if (!snap.exists) return void res.status(404).json({ error: 'Staff member not found' });
+
+    await ref.set({ ...updates, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+    const updated = await ref.get();
+    res.status(200).json({ id: updated.id, ...updated.data() });
+  } catch (err) {
+    console.error('PATCH /admin/staff/:id error:', err);
+    res.status(500).json({ error: 'Failed to update staff member' });
+  }
+});
+
+/** POST /admin/staff — create a new staff member in Firestore */
+app.post('/admin/staff', async (req, res) => {
+  if (!requireAdminPassword(req, res)) return;
+
+  const body = req.body as CreateStaffRequest;
+  if (!isNonEmptyString(body.name)) return void badRequest(res, 'name is required');
+  if (!isNonEmptyString(body.role)) return void badRequest(res, 'role is required');
+
+  const staffId = isNonEmptyString(body.id) ? body.id.trim() : `staff-${Date.now()}`;
+
+  const newStaff: QuasarStaff = {
+    id: staffId,
+    name: body.name.trim(),
+    role: body.role.trim(),
+    experience: isNonEmptyString(body.experience) ? body.experience.trim() : 'New hire',
+    emoji: isNonEmptyString(body.emoji) ? body.emoji.trim() : '✂️',
+    specialties: Array.isArray(body.specialties) ? body.specialties.map(String) : [],
+    available: typeof body.available === 'boolean' ? body.available : true,
+    schedule: (typeof body.schedule === 'object' && body.schedule !== null) ? body.schedule : {},
+  };
+
+  try {
+    const ref = db.collection('staff').doc(staffId);
+    await ref.set({
+      ...newStaff,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    const created = await ref.get();
+    res.status(201).json({ id: created.id, ...created.data() });
+  } catch (err) {
+    console.error('POST /admin/staff error:', err);
+    res.status(500).json({ error: 'Failed to create staff member' });
   }
 });
 
@@ -1053,6 +1186,36 @@ app.post('/bookings', authenticateUser, async (req, res) => {
             });
           } catch (err) {
             console.error('[notify] reschedule post-processing failed:', err);
+          }
+        })();
+      }
+
+      // Fire-and-forget booking confirmation email (only for fresh bookings — reschedules
+      // receive a rescheduled email instead, which is sent in the block above).
+      if (!rescheduledFromId) {
+        void (async () => {
+          try {
+            const [toEmail, stylistName] = await Promise.all([
+              lookupUserEmail(uid),
+              lookupStaffName(staffId),
+            ]);
+            if (!toEmail) {
+              console.warn(`[notify] Confirmation: no email on file for user ${uid}`);
+              return;
+            }
+            const serviceNames = quasarBody.services
+              .map(s => s.qty > 1 ? `${s.name} \u00d7${s.qty}` : s.name)
+              .join(', ');
+            await sendBookingConfirmedEmail({
+              toEmail,
+              dateLabel: quasarBody.dateLabel.trim(),
+              timeSlot,
+              stylistName,
+              serviceNames,
+              total,
+            });
+          } catch (err) {
+            console.error('[notify] Confirmation email post-processing failed:', err);
           }
         })();
       }

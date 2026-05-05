@@ -184,3 +184,23 @@ export interface FavouritesRequest {
   providerId: string;
   action: 'add' | 'remove';
 }
+
+export interface UpdateStaffRequest {
+  name?: string;
+  role?: string;
+  experience?: string;
+  emoji?: string;
+  specialties?: string[];
+  available?: boolean;
+}
+
+export interface CreateStaffRequest {
+  id?: string;
+  name: string;
+  role: string;
+  experience?: string;
+  emoji?: string;
+  specialties?: string[];
+  available?: boolean;
+  schedule?: { [day: string]: { start: string; end: string } | null };
+}
