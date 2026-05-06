@@ -1,3 +1,6 @@
+# Compiled TypeScript output — build artifacts, do not commit
+functions/lib/
+
 # Dependencies
 node_modules/
 npm-debug.log*
