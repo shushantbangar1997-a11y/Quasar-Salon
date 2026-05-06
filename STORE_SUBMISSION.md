@@ -146,12 +146,18 @@ To test:
 
 Use the same text as the App Store description above (max 4 000 characters).
 
+### Target audience
+
+1. Go to **Store presence → Main store listing → App content → Target audience and content**.
+2. Set **Target age group** to **Adults (18+)**.
+3. Save and confirm.
+
 ### Content rating questionnaire
 
 1. Go to **Policy → App content → Content rating**.
-2. Click **Start questionnaire** → select category **Utilities**.
-3. Answer **No** to all violence, sexual content, and controlled substance questions.
-4. Resulting rating: **Everyone (3+)**.
+2. Click **Start questionnaire** → select category **Shopping** (this best fits a booking/commerce app; do not use Utilities or Lifestyle — Google's questionnaire uses broader categories than the store listing).
+3. Answer **No** to all violence, sexual content, gambling, and controlled substance questions.
+4. Resulting rating: **Everyone (3+)** (or equivalent for your region).
 
 ### Data Safety form
 
@@ -207,7 +213,8 @@ Minimum phone screenshot size: **1080 × 1920 px**.
 - [ ] `eas build --platform android --profile production` completed successfully
 - [ ] App Store Connect: all fields filled, screenshots uploaded, Nutrition Labels complete
 - [ ] App Store Connect: test account credentials added to review notes
+- [ ] Google Play Console: target audience set to Adults (18+)
 - [ ] Google Play Console: Data Safety form complete and saved
-- [ ] Google Play Console: content rating questionnaire complete
+- [ ] Google Play Console: content rating questionnaire complete (Shopping category)
 - [ ] Google Play Console: privacy policy URL saved
 - [ ] Internal build tested on a real device before promoting to production
