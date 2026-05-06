@@ -19,6 +19,7 @@
       "bundleIdentifier": "com.quasarsalon.app",
       "buildNumber": "1",
       "supportsTablet": true,
+      "privacyPolicyUrl": "https://quasar-salon.replit.app/privacy-policy",
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "Quasar Salon needs access to your photos so you can upload a profile photo.",
         "NSCameraUsageDescription": "Quasar Salon needs access to your camera so you can take a profile photo.",
@@ -33,7 +34,8 @@
         "foregroundImage": "./assets/quasar-logo-transparent.png",
         "backgroundColor": "#FFFFFF"
       },
-      "permissions": ["READ_EXTERNAL_STORAGE", "READ_MEDIA_IMAGES"]
+      "permissions": ["READ_EXTERNAL_STORAGE", "READ_MEDIA_IMAGES"],
+      "privacyPolicyUrl": "https://quasar-salon.replit.app/privacy-policy"
     },
     "web": {
       "favicon": "./assets/quasar-logo-transparent.png"
