@@ -11,11 +11,11 @@ This guide covers every manual step needed to submit Quasar Salon to the Apple A
 The privacy policy and terms pages must be live at a stable HTTPS URL before submission.
 
 1. Open the Replit project and click **Deploy** (Deployments tab).
-2. Once deployed, note the production URL (e.g. `https://quasar-salon-backend.replit.app`).
+2. Once deployed, note the production URL (e.g. `https://quasar-salon-api.replit.app`).
 3. Verify both pages load in a browser:
    - `https://YOUR_BACKEND_DEPLOY_URL/privacy-policy`
    - `https://YOUR_BACKEND_DEPLOY_URL/terms`
-4. Replace `YOUR_BACKEND_DEPLOY_URL` in `mobile/app.json` (both `ios.privacyPolicyUrl` and `android.privacyPolicyUrl`) with the real URL, then rebuild.
+4. Set `EXPO_PUBLIC_API_BASE_URL=https://YOUR_BACKEND_DEPLOY_URL` as an EAS secret (in Expo Dashboard → Project → Secrets) — `app.config.js` reads this value and injects the correct `privacyPolicyUrl` into both the iOS and Android builds automatically. **[CODE DONE — just set the secret]**
 
 ### 2. Build the binaries
 
@@ -39,7 +39,7 @@ The `eas.json` production profile already sets `autoIncrement: true`, `resourceC
 | Subtitle (optional) | Premium Salon Booking |
 | Bundle ID | `com.quasarsalon.app` |
 | Primary language | English |
-| Category | **Lifestyle** |
+| Category | **Lifestyle** (set in App Store Connect; also declared via `LSApplicationCategoryType` in `infoPlist` — [CODE DONE]) |
 | Secondary category | Health & Fitness (optional) |
 | Age rating | **4+** (no objectionable content) |
 | Privacy Policy URL | `https://YOUR_BACKEND_DEPLOY_URL/privacy-policy` |
@@ -81,20 +81,21 @@ Answer every question truthfully. Based on the app's actual data collection:
 
 **Data types collected:**
 
-| Data type | Collected? | Linked to identity? | Used for tracking? |
-|---|---|---|---|
-| Name | Yes | Yes | No |
-| Email address | Yes | Yes | No |
-| Phone number | Yes (optional) | Yes | No |
-| Photos or videos | Yes (optional profile photo) | Yes | No |
-| User ID | Yes | Yes | No |
-| Crash data | No | — | — |
-| Coarse location | No | — | — |
-| Payment info | **No** | — | — |
+| Data type | Collected? | Linked to identity? | Used for tracking? | Purpose |
+|---|---|---|---|---|
+| Name | Yes | Yes | No | Account creation, booking display |
+| Email address | Yes | Yes | No | Sign-in, booking confirmation emails |
+| Phone number | Yes — optional | Yes | No | Salon contact for appointment changes |
+| Photos or videos | Yes — optional | Yes | No | Profile photo chosen by user |
+| User ID (Firebase UID) | Yes | Yes | No | Authenticate requests, link bookings to account |
+| Booking data (service, date, time, stylist) | Yes | Yes | No | Core app functionality — scheduling |
+| Crash data / device info | No | — | — | — |
+| Location | No | — | — | — |
+| Payment info | **No** | — | — | Payments are in person only |
 
-**Purposes for data use:** App Functionality, Analytics (crash/reliability only)
+**Purposes for data use:** App Functionality only (account management, booking management, transactional emails)
 
-No data is used for third-party advertising or tracking.
+No analytics SDK is integrated. No data is used for advertising or cross-app tracking.
 
 ### Age rating questionnaire
 
@@ -162,13 +163,13 @@ Go to **Policy → App content → Data safety** and fill in each section:
 
 | Category | Data type | Collected | Shared | Ephemeral? | Required? | Purpose |
 |---|---|---|---|---|---|---|
-| Personal info | Name | Yes | No | No | No (optional) | App functionality |
-| Personal info | Email address | Yes | No | No | Yes | App functionality, Account management |
-| Personal info | Phone number | Yes | No | No | No (optional) | App functionality |
-| Photos and videos | Photos | Yes | No | No | No (optional) | App functionality |
-| App activity | App interactions | Yes | No | No | Yes | App functionality |
+| Personal info | Name | Yes | No | No | No | Account creation |
+| Personal info | Email address | Yes | No | No | Yes | Sign-in, booking emails |
+| Personal info | Phone number | Yes | No | No | No (optional) | Salon contact |
+| Photos and videos | Photos | Yes | No | No | No (optional) | Profile photo |
+| App activity | Booking history (service, date, stylist) | Yes | No | No | Yes | Core booking functionality |
 | App info and performance | Crash logs | No | — | — | — | — |
-| Financial info | Purchase history | **No** | — | — | — | — |
+| Financial info | Purchase history | **No** | — | — | — | No payments in app |
 | Location | Precise or coarse location | **No** | — | — | — | — |
 
 **Security practices:**
@@ -201,7 +202,7 @@ Minimum phone screenshot size: **1080 × 1920 px**.
 ## Checklist before submitting
 
 - [ ] Backend deployed and `/privacy-policy` + `/terms` URLs are live
-- [ ] `YOUR_BACKEND_DEPLOY_URL` replaced in `mobile/app.json`
+- [ ] `EXPO_PUBLIC_API_BASE_URL` set as an EAS secret pointing to the deployed backend URL
 - [ ] `eas build --platform ios --profile production` completed successfully
 - [ ] `eas build --platform android --profile production` completed successfully
 - [ ] App Store Connect: all fields filled, screenshots uploaded, Nutrition Labels complete
