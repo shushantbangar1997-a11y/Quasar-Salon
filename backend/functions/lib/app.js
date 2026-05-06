@@ -185,9 +185,317 @@ function bookingStartTime(dateStr, timeSlot) {
         return null;
     }
 }
+/** ──── Notification helpers ──── */
+/** Look up the user's email — tries Firebase Auth first, then the Firestore users doc. */
+async function lookupUserEmail(uid) {
+    var _a;
+    try {
+        const authUser = await admin.auth().getUser(uid);
+        if (isNonEmptyString(authUser.email))
+            return authUser.email;
+    }
+    catch (e) {
+        // fall through to Firestore lookup
+    }
+    try {
+        const snap = await db.collection('users').doc(uid).get();
+        const email = snap.exists ? (_a = snap.data()) === null || _a === void 0 ? void 0 : _a.email : undefined;
+        return isNonEmptyString(email) ? email : null;
+    }
+    catch (_b) {
+        return null;
+    }
+}
+async function lookupStaffName(staffId) {
+    var _a;
+    if (!isNonEmptyString(staffId))
+        return 'your stylist';
+    try {
+        const snap = await db.collection('staff').doc(staffId).get();
+        const name = snap.exists ? (_a = snap.data()) === null || _a === void 0 ? void 0 : _a.name : undefined;
+        return isNonEmptyString(name) ? name : 'your stylist';
+    }
+    catch (_b) {
+        return 'your stylist';
+    }
+}
+/** Fire-and-forget reschedule email. */
+async function sendBookingRescheduledEmail(input) {
+    if (!process.env.OTP_EMAIL_USER || !process.env.OTP_EMAIL_PASS) {
+        console.warn('[notify] Skipping reschedule email — OTP_EMAIL_USER/OTP_EMAIL_PASS not configured');
+        return;
+    }
+    try {
+        const transport = makeTransport();
+        await transport.sendMail({
+            from: `"Quasar Salon" <${process.env.OTP_EMAIL_USER}>`,
+            to: input.toEmail,
+            subject: 'Your Quasar Salon appointment has been rescheduled',
+            html: `
+        <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:32px;background:#FAF8F5;border-radius:12px">
+          <h2 style="color:#1A1A1A;margin-bottom:8px">Quasar Salon</h2>
+          <p style="color:#5C4033;margin-bottom:20px">Your appointment has been rescheduled. Here are the new details — we look forward to seeing you.</p>
+          <div style="background:#fff;border:1px solid #E8DDD4;border-radius:10px;padding:20px;margin-bottom:14px">
+            <p style="margin:0 0 8px 0;color:#9C8878;font-size:12px;text-transform:uppercase;letter-spacing:1px">New appointment</p>
+            <p style="margin:0 0 6px 0;color:#111;font-size:16px"><strong>Date:</strong> ${input.newDateLabel}</p>
+            <p style="margin:0 0 6px 0;color:#111;font-size:16px"><strong>Time:</strong> ${input.newTimeSlot}</p>
+            <p style="margin:0;color:#111;font-size:16px"><strong>Stylist:</strong> ${input.stylistName}</p>
+          </div>
+          <div style="background:#fff;border:1px dashed #E8DDD4;border-radius:10px;padding:14px">
+            <p style="margin:0 0 4px 0;color:#9C8878;font-size:11px;text-transform:uppercase;letter-spacing:1px">Replaces</p>
+            <p style="margin:0;color:#5C4033;font-size:13px"><s>${input.oldDateLabel} at ${input.oldTimeSlot}</s></p>
+          </div>
+          <p style="color:#9C8878;font-size:12px;margin-top:24px">If you did not request this change, please contact the salon right away.</p>
+        </div>
+      `,
+        });
+    }
+    catch (err) {
+        console.error('[notify] Failed to send reschedule email:', err);
+    }
+}
+/** Fire-and-forget cancellation email. Logs (does not throw) on failure so the
+ * PATCH response is never blocked by SMTP issues. */
+async function sendBookingCancelledEmail(input) {
+    if (!process.env.OTP_EMAIL_USER || !process.env.OTP_EMAIL_PASS) {
+        console.warn('[notify] Skipping cancellation email — OTP_EMAIL_USER/OTP_EMAIL_PASS not configured');
+        return;
+    }
+    const subject = input.cancelledByStaff
+        ? 'Your Quasar Salon appointment was cancelled by the salon'
+        : 'Your Quasar Salon appointment is cancelled';
+    const intro = input.cancelledByStaff
+        ? 'The salon has cancelled the following appointment. We are sorry for the inconvenience — please book another time at your convenience.'
+        : 'Your appointment has been cancelled as requested. We hope to see you again soon.';
+    try {
+        const transport = makeTransport();
+        await transport.sendMail({
+            from: `"Quasar Salon" <${process.env.OTP_EMAIL_USER}>`,
+            to: input.toEmail,
+            subject,
+            html: `
+        <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:32px;background:#FAF8F5;border-radius:12px">
+          <h2 style="color:#1A1A1A;margin-bottom:8px">Quasar Salon</h2>
+          <p style="color:#5C4033;margin-bottom:20px">${intro}</p>
+          <div style="background:#fff;border:1px solid #E8DDD4;border-radius:10px;padding:20px">
+            <p style="margin:0 0 8px 0;color:#9C8878;font-size:12px;text-transform:uppercase;letter-spacing:1px">Cancelled appointment</p>
+            <p style="margin:0 0 6px 0;color:#111;font-size:16px"><strong>Date:</strong> ${input.dateLabel}</p>
+            <p style="margin:0 0 6px 0;color:#111;font-size:16px"><strong>Time:</strong> ${input.timeSlot}</p>
+            <p style="margin:0;color:#111;font-size:16px"><strong>Stylist:</strong> ${input.stylistName}</p>
+          </div>
+          <p style="color:#9C8878;font-size:12px;margin-top:24px">If this was a mistake, please contact the salon to rebook.</p>
+        </div>
+      `,
+        });
+    }
+    catch (err) {
+        console.error('[notify] Failed to send cancellation email:', err);
+    }
+}
+async function sendBookingConfirmedEmail(input) {
+    if (!process.env.OTP_EMAIL_USER || !process.env.OTP_EMAIL_PASS) {
+        console.warn('[notify] Skipping confirmation email — OTP_EMAIL_USER/OTP_EMAIL_PASS not configured');
+        return;
+    }
+    try {
+        const transport = makeTransport();
+        await transport.sendMail({
+            from: `"Quasar Salon" <${process.env.OTP_EMAIL_USER}>`,
+            to: input.toEmail,
+            subject: 'Your Quasar Salon appointment is confirmed',
+            html: `
+        <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:32px;background:#FAF8F5;border-radius:12px">
+          <h2 style="color:#1A1A1A;margin-bottom:8px">Quasar Salon</h2>
+          <p style="color:#5C4033;margin-bottom:20px">Your appointment is confirmed — we look forward to welcoming you.</p>
+          <div style="background:#fff;border:1px solid #E8DDD4;border-radius:10px;padding:20px;margin-bottom:14px">
+            <p style="margin:0 0 8px 0;color:#9C8878;font-size:12px;text-transform:uppercase;letter-spacing:1px">Appointment details</p>
+            <p style="margin:0 0 6px 0;color:#111;font-size:16px"><strong>Date:</strong> ${input.dateLabel}</p>
+            <p style="margin:0 0 6px 0;color:#111;font-size:16px"><strong>Time:</strong> ${input.timeSlot}</p>
+            <p style="margin:0 0 6px 0;color:#111;font-size:16px"><strong>Stylist:</strong> ${input.stylistName}</p>
+            <p style="margin:0 0 10px 0;color:#111;font-size:16px"><strong>Services:</strong> ${input.serviceNames}</p>
+            <p style="margin:0;color:#C9A84C;font-size:20px;font-weight:800">Total: &#8377;${input.total.toLocaleString('en-IN')}</p>
+          </div>
+          <p style="color:#5C4033;font-size:13px">Need to reschedule or cancel? Open the Quasar Salon app and visit My Bookings. Cancellations must be made at least 2 hours before your appointment.</p>
+          <p style="color:#9C8878;font-size:12px;margin-top:16px">Quasar Salon &mdash; thank you for choosing us!</p>
+        </div>
+      `,
+        });
+    }
+    catch (err) {
+        console.error('[notify] Failed to send booking confirmation email:', err);
+    }
+}
 /** ──── Routes ──── */
 exports.app.get('/health', (_req, res) => {
     res.json({ ok: true, service: 'quasar-salon-api' });
+});
+/** Shared HTML shell for legal pages */
+function legalPageHtml(title, body) {
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${title} — Quasar Salon</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #FFFFFF; color: #111111; }
+    .wrap { max-width: 680px; margin: 0 auto; padding: 40px 24px 80px; }
+    .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 36px; }
+    .brand-dot { width: 32px; height: 32px; border-radius: 50%; background: #C9A84C; }
+    .brand-name { font-size: 18px; font-weight: 800; color: #111111; letter-spacing: 0.5px; }
+    h1 { font-size: 30px; font-weight: 800; color: #111111; margin-bottom: 6px; }
+    .updated { font-size: 13px; color: #9C8878; margin-bottom: 32px; }
+    .section { background: #FAF8F5; border: 1px solid #E8DDD4; border-radius: 12px; padding: 20px 22px; margin-bottom: 16px; }
+    .section h2 { font-size: 15px; font-weight: 800; color: #111111; margin-bottom: 10px; }
+    .section p { font-size: 14px; color: #5C4033; line-height: 1.65; }
+    .section ul { padding-left: 18px; margin-top: 6px; }
+    .section li { font-size: 14px; color: #5C4033; line-height: 1.65; margin-bottom: 4px; }
+    .footer { margin-top: 40px; font-size: 12px; color: #9C8878; text-align: center; }
+    a { color: #C9A84C; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="brand">
+      <div class="brand-dot"></div>
+      <span class="brand-name">Quasar Salon</span>
+    </div>
+    <h1>${title}</h1>
+    <p class="updated">Last updated: 6 May 2025</p>
+    ${body}
+    <div class="footer">
+      &copy; ${new Date().getFullYear()} Quasar Salon. All rights reserved.
+    </div>
+  </div>
+</body>
+</html>`;
+}
+/** GET /privacy-policy — publicly hosted Privacy Policy page */
+exports.app.get('/privacy-policy', (_req, res) => {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.send(legalPageHtml('Privacy Policy', `
+    <div class="section">
+      <h2>1. Information we collect</h2>
+      <p>We collect the information you provide when you create an account or book a service:</p>
+      <ul>
+        <li><strong>Name and email address</strong> — required to create your account and send booking confirmations.</li>
+        <li><strong>Phone number</strong> — optional; you may add it later via Edit Profile so the salon can reach you about last-minute changes.</li>
+        <li><strong>Booking details</strong> — the services, date, time, and stylist you choose.</li>
+        <li><strong>Profile photo</strong> — optional; only uploaded if you choose to add one.</li>
+        <li><strong>Device and usage data</strong> — basic technical information (device type, app version) to keep the service secure and reliable.</li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h2>2. Sign-in methods and third-party data sharing</h2>
+      <p>You can sign in with your email address, a one-time code (OTP), or your Google account. When you choose Google Sign-In, Google shares your name, email address, and profile photo with us as part of the authentication process. We do not receive your Google password. Your choice of sign-in method does not affect how your data is used inside the app.</p>
+    </div>
+
+    <div class="section">
+      <h2>3. How we use your information</h2>
+      <ul>
+        <li>Create and manage your account</li>
+        <li>Confirm, remind, and track your salon appointments</li>
+        <li>Send transactional emails (booking confirmations, reschedule and cancellation notices)</li>
+        <li>Provide customer support</li>
+        <li>Improve the app's reliability and security</li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h2>4. Service providers and data processors</h2>
+      <p>We use the following third-party services to operate the app. Each acts as a data processor on our behalf and is contractually required to protect your data:</p>
+      <ul>
+        <li><strong>Google Firebase</strong> (Firebase Authentication, Cloud Firestore, Cloud Storage) — stores your account information, bookings, and any photos you upload. Firebase is operated by Google LLC. Data is stored in Google's cloud infrastructure.</li>
+        <li><strong>Gmail / Google Workspace</strong> — used to send OTP codes and booking notification emails.</li>
+      </ul>
+      <p>We do not sell your personal data to any third party.</p>
+    </div>
+
+    <div class="section">
+      <h2>5. Security</h2>
+      <p>All data is transmitted over HTTPS (TLS encryption). Your data is stored in Google Firebase, which employs industry-standard security measures including encryption at rest. We do not store payment card information — all payments are handled in person at the salon.</p>
+    </div>
+
+    <div class="section">
+      <h2>6. Data retention</h2>
+      <p>We keep your data while your account is active. When you delete your account (via Profile → Delete Account), your profile and booking history are permanently removed from our systems within a reasonable time, except where we are required to retain limited records for legal or accounting purposes.</p>
+    </div>
+
+    <div class="section">
+      <h2>7. Your rights</h2>
+      <p>You can access and correct your information at any time from <strong>Profile → Edit Profile</strong>. You can permanently delete your account from <strong>Profile → Delete Account</strong>. If you are in the European Economic Area or another jurisdiction with data-protection rights (such as the right to data portability or to lodge a complaint with a supervisory authority), please contact us at the email below to exercise those rights.</p>
+    </div>
+
+    <div class="section">
+      <h2>8. International users</h2>
+      <p>Quasar Salon is operated in India. If you are accessing the app from outside India, please be aware that your information may be transferred to and processed in India or other countries where Google's infrastructure operates. By using the app, you consent to this transfer.</p>
+    </div>
+
+    <div class="section">
+      <h2>9. Children</h2>
+      <p>Quasar Salon is intended for adults (13 and older). We do not knowingly collect personal information from children under 13. If we learn that we have done so, we will delete the information promptly.</p>
+    </div>
+
+    <div class="section">
+      <h2>10. Contact us</h2>
+      <p>For questions about this Privacy Policy, please email us at <a href="mailto:support@quasarsalon.com">support@quasarsalon.com</a>.</p>
+    </div>
+  `));
+});
+/** GET /terms — publicly hosted Terms of Service page */
+exports.app.get('/terms', (_req, res) => {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.send(legalPageHtml('Terms of Service', `
+    <div class="section">
+      <h2>1. Acceptance of terms</h2>
+      <p>By creating an account or using Quasar Salon, you agree to these Terms. If you do not agree, please do not use the app.</p>
+    </div>
+
+    <div class="section">
+      <h2>2. Booking and cancellation</h2>
+      <p>Bookings made through the app are confirmed once you receive an in-app confirmation and email. You may cancel or reschedule a booking up to 2 hours before the start time through the app. Within 2 hours of the appointment, please call the salon directly. Repeated no-shows may result in restricted access to online booking.</p>
+    </div>
+
+    <div class="section">
+      <h2>3. Payment</h2>
+      <p>The Quasar Salon app does not process any payments. All payments are made in person at the salon at the time of service. Prices shown in the app are estimates and may vary based on the actual services performed.</p>
+    </div>
+
+    <div class="section">
+      <h2>4. Acceptable use</h2>
+      <p>You agree not to misuse the app, attempt to access it in ways that are not intended, or use it for unlawful purposes. We may suspend or terminate accounts that violate these Terms.</p>
+    </div>
+
+    <div class="section">
+      <h2>5. User content</h2>
+      <p>Any information you submit (such as your name, phone number, or profile photo) must be accurate and yours to share. You grant Quasar Salon a limited licence to display this information within the app solely to provide the service.</p>
+    </div>
+
+    <div class="section">
+      <h2>6. Limitation of liability</h2>
+      <p>Quasar Salon is provided "as is". To the maximum extent permitted by law, we are not liable for indirect, incidental, or consequential damages arising from your use of the app.</p>
+    </div>
+
+    <div class="section">
+      <h2>7. Changes to these Terms</h2>
+      <p>We may update these Terms from time to time. We will note the "Last updated" date at the top of this page when we do. Continued use of the app after an update constitutes acceptance of the revised Terms.</p>
+    </div>
+
+    <div class="section">
+      <h2>8. Governing law</h2>
+      <p>These Terms are governed by and construed in accordance with the laws of India. Any dispute arising out of or in connection with these Terms shall be subject to the exclusive jurisdiction of the courts located in Mumbai, Maharashtra, India.</p>
+    </div>
+
+    <div class="section">
+      <h2>9. Contact</h2>
+      <p>Questions about these Terms? Email us at <a href="mailto:support@quasarsalon.com">support@quasarsalon.com</a>.</p>
+    </div>
+  `));
 });
 /** POST /auth/send-otp — generate & email a 6-digit code */
 exports.app.post('/auth/send-otp', async (req, res) => {
@@ -500,6 +808,92 @@ exports.app.post('/admin/staff/:id/photo', async (req, res) => {
         res.status(500).json({ error: 'Failed to upload staff photo' });
     }
 });
+/** PATCH /admin/staff/:id — update editable staff fields in Firestore */
+exports.app.patch('/admin/staff/:id', async (req, res) => {
+    if (!requireAdminPassword(req, res))
+        return;
+    const staffId = req.params.id;
+    if (!isNonEmptyString(staffId))
+        return void badRequest(res, 'staffId is required');
+    const body = req.body;
+    const updates = {};
+    if (body.name !== undefined) {
+        if (!isNonEmptyString(body.name))
+            return void badRequest(res, 'name must be a non-empty string');
+        updates.name = body.name.trim();
+    }
+    if (body.role !== undefined) {
+        if (!isNonEmptyString(body.role))
+            return void badRequest(res, 'role must be a non-empty string');
+        updates.role = body.role.trim();
+    }
+    if (body.experience !== undefined) {
+        if (!isNonEmptyString(body.experience))
+            return void badRequest(res, 'experience must be a non-empty string');
+        updates.experience = body.experience.trim();
+    }
+    if (body.emoji !== undefined) {
+        if (!isNonEmptyString(body.emoji))
+            return void badRequest(res, 'emoji must be a non-empty string');
+        updates.emoji = body.emoji.trim();
+    }
+    if (body.specialties !== undefined) {
+        if (!Array.isArray(body.specialties))
+            return void badRequest(res, 'specialties must be an array');
+        updates.specialties = body.specialties.map(String);
+    }
+    if (body.available !== undefined) {
+        if (typeof body.available !== 'boolean')
+            return void badRequest(res, 'available must be a boolean');
+        updates.available = body.available;
+    }
+    if (Object.keys(updates).length === 0)
+        return void badRequest(res, 'No valid fields to update');
+    try {
+        const ref = db.collection('staff').doc(staffId);
+        const snap = await ref.get();
+        if (!snap.exists)
+            return void res.status(404).json({ error: 'Staff member not found' });
+        await ref.set(Object.assign(Object.assign({}, updates), { updatedAt: admin.firestore.FieldValue.serverTimestamp() }), { merge: true });
+        const updated = await ref.get();
+        res.status(200).json(Object.assign({ id: updated.id }, updated.data()));
+    }
+    catch (err) {
+        console.error('PATCH /admin/staff/:id error:', err);
+        res.status(500).json({ error: 'Failed to update staff member' });
+    }
+});
+/** POST /admin/staff — create a new staff member in Firestore */
+exports.app.post('/admin/staff', async (req, res) => {
+    if (!requireAdminPassword(req, res))
+        return;
+    const body = req.body;
+    if (!isNonEmptyString(body.name))
+        return void badRequest(res, 'name is required');
+    if (!isNonEmptyString(body.role))
+        return void badRequest(res, 'role is required');
+    const staffId = isNonEmptyString(body.id) ? body.id.trim() : `staff-${Date.now()}`;
+    const newStaff = {
+        id: staffId,
+        name: body.name.trim(),
+        role: body.role.trim(),
+        experience: isNonEmptyString(body.experience) ? body.experience.trim() : 'New hire',
+        emoji: isNonEmptyString(body.emoji) ? body.emoji.trim() : '✂️',
+        specialties: Array.isArray(body.specialties) ? body.specialties.map(String) : [],
+        available: typeof body.available === 'boolean' ? body.available : true,
+        schedule: (typeof body.schedule === 'object' && body.schedule !== null) ? body.schedule : {},
+    };
+    try {
+        const ref = db.collection('staff').doc(staffId);
+        await ref.set(Object.assign(Object.assign({}, newStaff), { createdAt: admin.firestore.FieldValue.serverTimestamp(), updatedAt: admin.firestore.FieldValue.serverTimestamp() }));
+        const created = await ref.get();
+        res.status(201).json(Object.assign({ id: created.id }, created.data()));
+    }
+    catch (err) {
+        console.error('POST /admin/staff error:', err);
+        res.status(500).json({ error: 'Failed to create staff member' });
+    }
+});
 exports.app.post('/users/me/favourites', authenticateUser, async (req, res) => {
     const uid = requireAuth(req, res);
     if (!uid)
@@ -781,6 +1175,95 @@ exports.app.post('/bookings', authenticateUser, async (req, res) => {
             });
             const created = await bookingRef.get();
             res.status(201).json(Object.assign({ id: created.id }, created.data()));
+            // If this booking replaces an earlier one (reschedule flow), cancel the
+            // old booking, free its slots, and notify the user with a "rescheduled"
+            // email containing the NEW date/time/stylist. Done after the response so
+            // SMTP latency never blocks the client.
+            const rescheduledFromId = isNonEmptyString(quasarBody.rescheduledFromBookingId)
+                ? quasarBody.rescheduledFromBookingId.trim()
+                : null;
+            if (rescheduledFromId) {
+                void (async () => {
+                    var _a, _b, _c;
+                    try {
+                        const oldRef = db.collection('bookings').doc(rescheduledFromId);
+                        const oldSnap = await oldRef.get();
+                        if (!oldSnap.exists) {
+                            console.warn(`[notify] reschedule: prior booking ${rescheduledFromId} not found`);
+                            return;
+                        }
+                        const oldData = oldSnap.data();
+                        // Only cancel if the requesting user owns the prior booking
+                        if (oldData.userId !== uid) {
+                            console.warn(`[notify] reschedule: prior booking ${rescheduledFromId} not owned by ${uid}; skipping`);
+                            return;
+                        }
+                        const oldDateLabel = (_b = (_a = oldData.dateLabel) !== null && _a !== void 0 ? _a : oldData.date) !== null && _b !== void 0 ? _b : '';
+                        const oldTimeSlot = (_c = oldData.timeSlot) !== null && _c !== void 0 ? _c : '';
+                        // Mark cancelled (suppress the standard cancellation email — we send a
+                        // reschedule email instead, which is a better UX).
+                        if (oldData.status !== 'cancelled') {
+                            await oldRef.set(Object.assign({ status: 'cancelled', rescheduleSuppressCancelEmail: true }, nowTimestamps()), { merge: true });
+                            // Free the old slots
+                            const oldSlotsBlocked = oldData.slotsBlocked;
+                            const oldStaffId = oldData.staffId;
+                            const oldDateStr = oldData.date;
+                            if (Array.isArray(oldSlotsBlocked) && isNonEmptyString(oldStaffId) && isNonEmptyString(oldDateStr)) {
+                                await Promise.all(oldSlotsBlocked.map(slot => db.collection('blocked_slots').doc(blockedSlotDocId(oldStaffId, oldDateStr, slot)).delete()));
+                            }
+                        }
+                        const [toEmail, stylistName] = await Promise.all([
+                            lookupUserEmail(uid),
+                            lookupStaffName(staffId),
+                        ]);
+                        if (!toEmail) {
+                            console.warn(`[notify] reschedule: no email on file for user ${uid}`);
+                            return;
+                        }
+                        await sendBookingRescheduledEmail({
+                            toEmail,
+                            oldDateLabel,
+                            oldTimeSlot,
+                            newDateLabel: quasarBody.dateLabel.trim(),
+                            newTimeSlot: timeSlot,
+                            stylistName,
+                        });
+                    }
+                    catch (err) {
+                        console.error('[notify] reschedule post-processing failed:', err);
+                    }
+                })();
+            }
+            // Fire-and-forget booking confirmation email (only for fresh bookings — reschedules
+            // receive a rescheduled email instead, which is sent in the block above).
+            if (!rescheduledFromId) {
+                void (async () => {
+                    try {
+                        const [toEmail, stylistName] = await Promise.all([
+                            lookupUserEmail(uid),
+                            lookupStaffName(staffId),
+                        ]);
+                        if (!toEmail) {
+                            console.warn(`[notify] Confirmation: no email on file for user ${uid}`);
+                            return;
+                        }
+                        const serviceNames = quasarBody.services
+                            .map(s => s.qty > 1 ? `${s.name} \u00d7${s.qty}` : s.name)
+                            .join(', ');
+                        await sendBookingConfirmedEmail({
+                            toEmail,
+                            dateLabel: quasarBody.dateLabel.trim(),
+                            timeSlot,
+                            stylistName,
+                            serviceNames,
+                            total,
+                        });
+                    }
+                    catch (err) {
+                        console.error('[notify] Confirmation email post-processing failed:', err);
+                    }
+                })();
+            }
         }
         catch (err) {
             if (err instanceof Error && err.message === 'SLOT_TAKEN') {
@@ -880,6 +1363,7 @@ exports.app.get('/bookings', authenticateUser, async (req, res) => {
     }
 });
 exports.app.patch('/bookings/:id/status', authenticateUser, async (req, res) => {
+    var _a, _b, _c;
     const uid = requireAuth(req, res);
     if (!uid)
         return;
@@ -925,6 +1409,35 @@ exports.app.patch('/bookings/:id/status', authenticateUser, async (req, res) => 
         if (Array.isArray(slotsBlocked) && isNonEmptyString(staffId) && isNonEmptyString(dateStr)) {
             const deleteOps = slotsBlocked.map(slot => db.collection('blocked_slots').doc(blockedSlotDocId(staffId, dateStr, slot)).delete());
             await Promise.all(deleteOps);
+        }
+        // Notify the booking owner. Fire-and-forget — never block the API response on email delivery.
+        // Guard against duplicate sends: skip if the booking was already cancelled before this PATCH
+        // (idempotent re-PATCH) or if a reschedule flow already handled the user's notification.
+        const previouslyCancelled = data.status === 'cancelled';
+        const suppressedByReschedule = data.rescheduleSuppressCancelEmail === true;
+        const ownerId = data.userId;
+        const wasCancelledByStaff = ownerId !== uid;
+        const shouldNotify = !previouslyCancelled && !suppressedByReschedule;
+        const dateLabel = (_b = (_a = data.dateLabel) !== null && _a !== void 0 ? _a : data.date) !== null && _b !== void 0 ? _b : 'your appointment date';
+        const timeSlot = (_c = data.timeSlot) !== null && _c !== void 0 ? _c : 'your appointment time';
+        if (isNonEmptyString(ownerId) && shouldNotify) {
+            void (async () => {
+                const [toEmail, stylistName] = await Promise.all([
+                    lookupUserEmail(ownerId),
+                    lookupStaffName(data.staffId),
+                ]);
+                if (!toEmail) {
+                    console.warn(`[notify] No email on file for user ${ownerId}; skipping cancellation notice for booking ${bookingId}`);
+                    return;
+                }
+                await sendBookingCancelledEmail({
+                    toEmail,
+                    dateLabel,
+                    timeSlot,
+                    stylistName,
+                    cancelledByStaff: wasCancelledByStaff,
+                });
+            })();
         }
     }
     const updated = await ref.get();

@@ -394,6 +394,177 @@ app.get('/health', (_req, res) => {
   res.json({ ok: true, service: 'quasar-salon-api' });
 });
 
+/** Shared HTML shell for legal pages */
+function legalPageHtml(title: string, body: string): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${title} — Quasar Salon</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #FFFFFF; color: #111111; }
+    .wrap { max-width: 680px; margin: 0 auto; padding: 40px 24px 80px; }
+    .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 36px; }
+    .brand-dot { width: 32px; height: 32px; border-radius: 50%; background: #C9A84C; }
+    .brand-name { font-size: 18px; font-weight: 800; color: #111111; letter-spacing: 0.5px; }
+    h1 { font-size: 30px; font-weight: 800; color: #111111; margin-bottom: 6px; }
+    .updated { font-size: 13px; color: #9C8878; margin-bottom: 32px; }
+    .section { background: #FAF8F5; border: 1px solid #E8DDD4; border-radius: 12px; padding: 20px 22px; margin-bottom: 16px; }
+    .section h2 { font-size: 15px; font-weight: 800; color: #111111; margin-bottom: 10px; }
+    .section p { font-size: 14px; color: #5C4033; line-height: 1.65; }
+    .section ul { padding-left: 18px; margin-top: 6px; }
+    .section li { font-size: 14px; color: #5C4033; line-height: 1.65; margin-bottom: 4px; }
+    .footer { margin-top: 40px; font-size: 12px; color: #9C8878; text-align: center; }
+    a { color: #C9A84C; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="brand">
+      <div class="brand-dot"></div>
+      <span class="brand-name">Quasar Salon</span>
+    </div>
+    <h1>${title}</h1>
+    <p class="updated">Last updated: 6 May 2025</p>
+    ${body}
+    <div class="footer">
+      &copy; ${new Date().getFullYear()} Quasar Salon. All rights reserved.
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
+/** GET /privacy-policy — publicly hosted Privacy Policy page */
+app.get('/privacy-policy', (_req, res) => {
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.setHeader('Cache-Control', 'public, max-age=86400');
+  res.send(legalPageHtml('Privacy Policy', `
+    <div class="section">
+      <h2>1. Information we collect</h2>
+      <p>We collect the information you provide when you create an account or book a service:</p>
+      <ul>
+        <li><strong>Name and email address</strong> — required to create your account and send booking confirmations.</li>
+        <li><strong>Phone number</strong> — optional; you may add it later via Edit Profile so the salon can reach you about last-minute changes.</li>
+        <li><strong>Booking details</strong> — the services, date, time, and stylist you choose.</li>
+        <li><strong>Profile photo</strong> — optional; only uploaded if you choose to add one.</li>
+        <li><strong>Device and usage data</strong> — basic technical information (device type, app version) to keep the service secure and reliable.</li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h2>2. Sign-in methods and third-party data sharing</h2>
+      <p>You can sign in with your email address, a one-time code (OTP), or your Google account. When you choose Google Sign-In, Google shares your name, email address, and profile photo with us as part of the authentication process. We do not receive your Google password. Your choice of sign-in method does not affect how your data is used inside the app.</p>
+    </div>
+
+    <div class="section">
+      <h2>3. How we use your information</h2>
+      <ul>
+        <li>Create and manage your account</li>
+        <li>Confirm, remind, and track your salon appointments</li>
+        <li>Send transactional emails (booking confirmations, reschedule and cancellation notices)</li>
+        <li>Provide customer support</li>
+        <li>Improve the app's reliability and security</li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h2>4. Service providers and data processors</h2>
+      <p>We use the following third-party services to operate the app. Each acts as a data processor on our behalf and is contractually required to protect your data:</p>
+      <ul>
+        <li><strong>Google Firebase</strong> (Firebase Authentication, Cloud Firestore, Cloud Storage) — stores your account information, bookings, and any photos you upload. Firebase is operated by Google LLC. Data is stored in Google's cloud infrastructure.</li>
+        <li><strong>Gmail / Google Workspace</strong> — used to send OTP codes and booking notification emails.</li>
+      </ul>
+      <p>We do not sell your personal data to any third party.</p>
+    </div>
+
+    <div class="section">
+      <h2>5. Security</h2>
+      <p>All data is transmitted over HTTPS (TLS encryption). Your data is stored in Google Firebase, which employs industry-standard security measures including encryption at rest. We do not store payment card information — all payments are handled in person at the salon.</p>
+    </div>
+
+    <div class="section">
+      <h2>6. Data retention</h2>
+      <p>We keep your data while your account is active. When you delete your account (via Profile → Delete Account), your profile and booking history are permanently removed from our systems within a reasonable time, except where we are required to retain limited records for legal or accounting purposes.</p>
+    </div>
+
+    <div class="section">
+      <h2>7. Your rights</h2>
+      <p>You can access and correct your information at any time from <strong>Profile → Edit Profile</strong>. You can permanently delete your account from <strong>Profile → Delete Account</strong>. If you are in the European Economic Area or another jurisdiction with data-protection rights (such as the right to data portability or to lodge a complaint with a supervisory authority), please contact us at the email below to exercise those rights.</p>
+    </div>
+
+    <div class="section">
+      <h2>8. International users</h2>
+      <p>Quasar Salon is operated in India. If you are accessing the app from outside India, please be aware that your information may be transferred to and processed in India or other countries where Google's infrastructure operates. By using the app, you consent to this transfer.</p>
+    </div>
+
+    <div class="section">
+      <h2>9. Children</h2>
+      <p>Quasar Salon is intended for adults (13 and older). We do not knowingly collect personal information from children under 13. If we learn that we have done so, we will delete the information promptly.</p>
+    </div>
+
+    <div class="section">
+      <h2>10. Contact us</h2>
+      <p>For questions about this Privacy Policy, please email us at <a href="mailto:support@quasarsalon.com">support@quasarsalon.com</a>.</p>
+    </div>
+  `));
+});
+
+/** GET /terms — publicly hosted Terms of Service page */
+app.get('/terms', (_req, res) => {
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.setHeader('Cache-Control', 'public, max-age=86400');
+  res.send(legalPageHtml('Terms of Service', `
+    <div class="section">
+      <h2>1. Acceptance of terms</h2>
+      <p>By creating an account or using Quasar Salon, you agree to these Terms. If you do not agree, please do not use the app.</p>
+    </div>
+
+    <div class="section">
+      <h2>2. Booking and cancellation</h2>
+      <p>Bookings made through the app are confirmed once you receive an in-app confirmation and email. You may cancel or reschedule a booking up to 2 hours before the start time through the app. Within 2 hours of the appointment, please call the salon directly. Repeated no-shows may result in restricted access to online booking.</p>
+    </div>
+
+    <div class="section">
+      <h2>3. Payment</h2>
+      <p>The Quasar Salon app does not process any payments. All payments are made in person at the salon at the time of service. Prices shown in the app are estimates and may vary based on the actual services performed.</p>
+    </div>
+
+    <div class="section">
+      <h2>4. Acceptable use</h2>
+      <p>You agree not to misuse the app, attempt to access it in ways that are not intended, or use it for unlawful purposes. We may suspend or terminate accounts that violate these Terms.</p>
+    </div>
+
+    <div class="section">
+      <h2>5. User content</h2>
+      <p>Any information you submit (such as your name, phone number, or profile photo) must be accurate and yours to share. You grant Quasar Salon a limited licence to display this information within the app solely to provide the service.</p>
+    </div>
+
+    <div class="section">
+      <h2>6. Limitation of liability</h2>
+      <p>Quasar Salon is provided "as is". To the maximum extent permitted by law, we are not liable for indirect, incidental, or consequential damages arising from your use of the app.</p>
+    </div>
+
+    <div class="section">
+      <h2>7. Changes to these Terms</h2>
+      <p>We may update these Terms from time to time. We will note the "Last updated" date at the top of this page when we do. Continued use of the app after an update constitutes acceptance of the revised Terms.</p>
+    </div>
+
+    <div class="section">
+      <h2>8. Governing law</h2>
+      <p>These Terms are governed by and construed in accordance with the laws of India. Any dispute arising out of or in connection with these Terms shall be subject to the exclusive jurisdiction of the courts located in Mumbai, Maharashtra, India.</p>
+    </div>
+
+    <div class="section">
+      <h2>9. Contact</h2>
+      <p>Questions about these Terms? Email us at <a href="mailto:support@quasarsalon.com">support@quasarsalon.com</a>.</p>
+    </div>
+  `));
+});
+
 /** POST /auth/send-otp — generate & email a 6-digit code */
 app.post('/auth/send-otp', async (req, res) => {
   const { email } = req.body as { email?: unknown };
