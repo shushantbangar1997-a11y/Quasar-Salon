@@ -4,7 +4,7 @@ import {
   KeyboardAvoidingView, Platform, SafeAreaView, ScrollView,
   StatusBar, Image, ActivityIndicator
 } from 'react-native';
-import { createUserWithEmailAndPassword, signInWithCredential, GoogleAuthProvider, updateProfile } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signInWithCredential, signInWithPopup, GoogleAuthProvider, updateProfile } from 'firebase/auth';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 import { auth } from '../firebase';
@@ -43,11 +43,7 @@ export default function SignUpScreen({ navigation }: SignUpScreenProps) {
         setGoogleLoading(true);
         const credential = GoogleAuthProvider.credential(authentication.idToken);
         signInWithCredential(auth, credential)
-          .then(() => {
-            // After Google sign-in, route to EditProfile so the customer can add a phone number
-            // (required by the salon, not provided by Google's basic profile).
-            navigation.navigate('EditProfile');
-          })
+          .then(() => navigation.navigate('EditProfile'))
           .catch(e => setError(e instanceof Error ? e.message : 'Google sign-in failed'))
           .finally(() => setGoogleLoading(false));
       } else {
@@ -57,6 +53,24 @@ export default function SignUpScreen({ navigation }: SignUpScreenProps) {
       setGoogleLoading(false);
     }
   }, [googleResponse]);
+
+  const handleGoogleSignIn = async () => {
+    if (!auth) return;
+    setGoogleLoading(true);
+    setError('');
+    if (Platform.OS === 'web') {
+      try {
+        await signInWithPopup(auth, new GoogleAuthProvider());
+        navigation.navigate('EditProfile');
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Google sign-in failed');
+      } finally {
+        setGoogleLoading(false);
+      }
+    } else {
+      promptGoogleAsync();
+    }
+  };
 
   const handleSignUp = async () => {
     if (!name.trim() || !email || !password) { setError('Please fill in all fields'); return; }
@@ -125,7 +139,7 @@ export default function SignUpScreen({ navigation }: SignUpScreenProps) {
           {/* Google Sign-Up */}
           <Pressable
             style={[s.googleBtn, (loading || googleLoading) && { opacity: 0.6 }]}
-            onPress={() => { setGoogleLoading(true); promptGoogleAsync(); }}
+            onPress={handleGoogleSignIn}
             disabled={loading || googleLoading}
           >
             {googleLoading

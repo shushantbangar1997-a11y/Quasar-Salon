@@ -4,7 +4,7 @@ import {
   KeyboardAvoidingView, Platform, SafeAreaView, StatusBar,
   Image, ActivityIndicator
 } from 'react-native';
-import { signInWithEmailAndPassword, signInAnonymously, signInWithCredential, GoogleAuthProvider } from 'firebase/auth';
+import { signInWithEmailAndPassword, signInAnonymously, signInWithCredential, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 import { auth } from '../firebase';
@@ -49,6 +49,24 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
       setGoogleLoading(false);
     }
   }, [googleResponse]);
+
+  const handleGoogleSignIn = async () => {
+    if (!auth) return;
+    setGoogleLoading(true);
+    setError('');
+    if (Platform.OS === 'web') {
+      try {
+        await signInWithPopup(auth, new GoogleAuthProvider());
+        navigation.navigate('MainTabs');
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Google sign-in failed');
+      } finally {
+        setGoogleLoading(false);
+      }
+    } else {
+      promptGoogleAsync();
+    }
+  };
 
   const handleLogin = async () => {
     if (!email || !password) { setError('Please fill in all fields'); return; }
@@ -107,7 +125,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
           {/* Google Sign-In */}
           <Pressable
             style={[s.googleBtn, (loading || googleLoading) && { opacity: 0.6 }]}
-            onPress={() => { setGoogleLoading(true); promptGoogleAsync(); }}
+            onPress={handleGoogleSignIn}
             disabled={loading || googleLoading}
           >
             {googleLoading
