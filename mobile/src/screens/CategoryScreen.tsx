@@ -18,6 +18,12 @@ export default function CategoryScreen({ route, navigation }: CategoryScreenProp
     filter === 'All' || s.gender === filter || s.gender === 'Both'
   );
 
+  const menServicesWithImage = category.services.filter(s => s.gender === 'Men' && s.imageUrl);
+  const headerImage: string | number =
+    filter === 'Men' && menServicesWithImage.length > 0
+      ? menServicesWithImage[0].imageUrl!
+      : category.imageUrl;
+
   const getQty = (svc: QuasarService) => {
     const item = items.find(i => i.service.id === svc.id);
     return item?.qty || 0;
@@ -43,9 +49,9 @@ export default function CategoryScreen({ route, navigation }: CategoryScreenProp
           <Text style={s.title}>{category.name}</Text>
           <Text style={s.subtitle}>{category.services.length} services available</Text>
         </View>
-        {category.imageUrl ? (
+        {headerImage ? (
           <SkeletonImage
-            source={typeof category.imageUrl === 'string' ? { uri: category.imageUrl } : category.imageUrl}
+            source={typeof headerImage === 'string' ? { uri: headerImage } : headerImage}
             style={s.headerImage}
             resizeMode="cover"
             radius={12}
@@ -80,6 +86,15 @@ export default function CategoryScreen({ route, navigation }: CategoryScreenProp
           const qty = getQty(svc);
           return (
             <View key={svc.id} style={s.card}>
+              {svc.imageUrl ? (
+                <SkeletonImage
+                  source={typeof svc.imageUrl === 'string' ? { uri: svc.imageUrl } : svc.imageUrl}
+                  style={s.svcThumb}
+                  resizeMode="cover"
+                  radius={10}
+                  fallback={<View style={[s.svcThumb, { backgroundColor: COLORS.bgElevated, borderRadius: 10 }]} />}
+                />
+              ) : null}
               <View style={s.cardInfo}>
                 <Text style={s.svcName}>{svc.name}</Text>
                 {svc.note && <Text style={s.svcNote}>{svc.note}</Text>}
@@ -144,8 +159,9 @@ const s = StyleSheet.create({
   filterChipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
   filterText: { fontSize: 13, color: COLORS.textSecondary, fontWeight: '600' },
   filterTextActive: { color: COLORS.bg },
-  card: { backgroundColor: COLORS.bgCard, borderRadius: RADIUS.lg, padding: 16, marginBottom: 10, borderWidth: 1, borderColor: COLORS.border, flexDirection: 'row', alignItems: 'center' },
-  cardInfo: { flex: 1, marginRight: 12 },
+  card: { backgroundColor: COLORS.bgCard, borderRadius: RADIUS.lg, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: COLORS.border, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  svcThumb: { width: 72, height: 72, borderRadius: 10, flexShrink: 0 },
+  cardInfo: { flex: 1, marginRight: 8 },
   svcName: { fontSize: 15, fontWeight: '700', color: COLORS.text },
   svcNote: { fontSize: 11, color: COLORS.textMuted, marginTop: 2 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },

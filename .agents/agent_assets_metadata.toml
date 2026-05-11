@@ -102,3 +102,15 @@ id = "vN6glgTImaUx08bwu5Kt7"
 uri = "file://mobile/assets/services/transformation-men.png"
 type = "image"
 title = "men hair color transformation salon"
+
+[[generated]]
+id = "DvL9fqy9YiUJwEFJlRLGT"
+uri = "file://mobile/assets/services/beard-shave-men.png"
+type = "image"
+title = "beard shave men luxury salon"
+
+[[generated]]
+id = "D3GbJO4kdgX2XuKY46yfy"
+uri = "file://mobile/assets/services/waxing-men.png"
+type = "image"
+title = "men waxing luxury salon"
