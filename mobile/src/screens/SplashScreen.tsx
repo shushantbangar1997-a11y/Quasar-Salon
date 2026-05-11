@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import {
-  View, Image, Text, StyleSheet, StatusBar, Animated, Easing, Dimensions,
+  View, Image, Text, StyleSheet, StatusBar, Animated, Easing, Dimensions, Platform,
 } from 'react-native';
 import { COLORS } from '../theme';
 
@@ -17,21 +17,42 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
   const tagOpacity  = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    // On web the splash should be very brief — no need to hold the user
+    const isWeb = Platform.OS === 'web';
+
+    // Safety fallback: always dismiss after max 2.5 s (web) / 4 s (native)
+    const fallback = setTimeout(onFinish, isWeb ? 2500 : 4000);
+
     Animated.sequence([
       Animated.parallel([
-        Animated.timing(logoOpacity, { toValue: 1, duration: 600, useNativeDriver: false }),
-        Animated.spring(logoScale, { toValue: 1, friction: 6, useNativeDriver: false }),
+        Animated.timing(logoOpacity, {
+          toValue: 1,
+          duration: isWeb ? 300 : 600,
+          useNativeDriver: false,
+        }),
+        Animated.timing(logoScale, {
+          toValue: 1,
+          duration: isWeb ? 350 : 700,
+          easing: Easing.out(Easing.back(1.4)),
+          useNativeDriver: false,
+        }),
       ]),
-      Animated.delay(200),
-      Animated.timing(tagOpacity, { toValue: 1, duration: 500, useNativeDriver: false }),
-      Animated.delay(1200),
+      Animated.delay(isWeb ? 100 : 200),
+      Animated.timing(tagOpacity, {
+        toValue: 1,
+        duration: isWeb ? 200 : 500,
+        useNativeDriver: false,
+      }),
+      Animated.delay(isWeb ? 400 : 1200),
       Animated.timing(fadeOut, {
         toValue: 0,
-        duration: 500,
+        duration: isWeb ? 300 : 500,
         easing: Easing.out(Easing.ease),
         useNativeDriver: false,
       }),
-    ]).start(() => onFinish());
+    ]).start(() => { clearTimeout(fallback); onFinish(); });
+
+    return () => clearTimeout(fallback);
   }, []);
 
   return (
