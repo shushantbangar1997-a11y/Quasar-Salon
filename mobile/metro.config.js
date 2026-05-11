@@ -18,6 +18,8 @@ const BACKEND_PORT = parseInt(process.env.BACKEND_PORT || '8080', 10);
 const BACKEND_HOST = process.env.BACKEND_HOST || '127.0.0.1';
 
 config.server = config.server || {};
+// Allow connections from Replit's proxy domain and Expo Go on any phone
+config.server.allowedHosts = 'all';
 const previousEnhanceMiddleware = config.server.enhanceMiddleware;
 config.server.enhanceMiddleware = (metroMiddleware, metroServer) => {
   const wrapped = previousEnhanceMiddleware

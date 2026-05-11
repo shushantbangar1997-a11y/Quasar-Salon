@@ -85,6 +85,8 @@ mobile/
 
 Replit only routes one external HTTPS port (5000 -> 80) reliably for this repl, so the public `https://8080-<repl-domain>` URL does NOT actually reach the backend (it returns Replit's "Run this app" placeholder page). To work around this, `mobile/metro.config.js` adds an `enhanceMiddleware` that proxies any request starting with `/api/` to `http://localhost:8080` (stripping the `/api` prefix). All API calls — from both the browser preview AND the phone via Expo Go — therefore hit `https://<repl-domain>/api/...` and get forwarded to the Express backend.
 
+`metro.config.js` also sets `config.server.allowedHosts = 'all'` — without this, Metro's host-validation middleware rejects connections from Expo Go on a real phone because the `Host` header is the Replit domain (not `localhost`), silently failing the QR scan.
+
 This means the `Start Backend` workflow must be running for any API call to succeed.
 
 ### Phone testing with Expo Go
