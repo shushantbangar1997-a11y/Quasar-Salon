@@ -33,6 +33,28 @@ export interface StaffMember {
 
 export const QUASAR_CATEGORIES: QuasarCategory[] = [
   {
+    id: 'mens-grooming',
+    name: "Men's Grooming",
+    icon: '✂️',
+    imageUrl: require('../assets/services/hair-care-men.png'),
+    services: [
+      { id: 'hc-8', name: 'Men Hair Cut', price: 599, durationMins: 30, gender: 'Men', imageUrl: require('../assets/services/hair-care-men.png') },
+      { id: 'hc-9', name: 'Beard Cut / Shave', price: 399, durationMins: 20, gender: 'Men', imageUrl: require('../assets/services/beard-shave-men.png') },
+      { id: 'hc-10', name: 'Beard Color', price: 999, durationMins: 30, gender: 'Men', imageUrl: require('../assets/services/beard-shave-men.png') },
+      { id: 'hc-11', name: 'Bigen Beard Color', price: 1199, durationMins: 40, gender: 'Men', imageUrl: require('../assets/services/beard-shave-men.png') },
+      { id: 'hc-12', name: 'Moustache', price: 499, durationMins: 20, gender: 'Men', imageUrl: require('../assets/services/beard-shave-men.png') },
+      { id: 'hc-3', name: 'Hair Styling (Without Wash)', price: 249, durationMins: 20, gender: 'Men', imageUrl: require('../assets/services/hair-care-men.png') },
+      { id: 'hc-4', name: 'Hair Styling (With Wash)', price: 349, durationMins: 30, gender: 'Men', imageUrl: require('../assets/services/hair-care-men.png') },
+      { id: 'hc-5', name: 'Hair Wash & Blow Dry (Premium)', price: 549, durationMins: 45, gender: 'Men', note: 'Cotril/Fiber Clinix/Blue Shampoo', imageUrl: require('../assets/services/hair-care-men.png') },
+      { id: 'hc-7', name: 'Hair Wash & Blow Dry (Nashi)', price: 599, durationMins: 45, gender: 'Men', imageUrl: require('../assets/services/hair-care-men.png') },
+      { id: 'hc-16', name: 'Boy Hair Cut (Below 5 Years)', price: 449, durationMins: 20, gender: 'Men', imageUrl: require('../assets/services/hair-care-men.png') },
+      { id: 'tr-3', name: 'Fashion Global Color', price: 2499, durationMins: 90, gender: 'Men', note: 'Onwards', imageUrl: require('../assets/services/transformation-men.png') },
+      { id: 'tr-5', name: 'Highlights', price: 3499, durationMins: 120, gender: 'Men', note: 'Onwards', imageUrl: require('../assets/services/transformation-men.png') },
+      { id: 'wx-17', name: 'Half Arms (Men) — Honey', price: 499, durationMins: 25, gender: 'Men', imageUrl: require('../assets/services/waxing-men.png') },
+      { id: 'wx-18', name: 'Full Arms (Men) — Honey', price: 799, durationMins: 35, gender: 'Men', imageUrl: require('../assets/services/waxing-men.png') },
+    ],
+  },
+  {
     id: 'hair-care',
     name: 'Hair Care',
     icon: '💇‍♀️',

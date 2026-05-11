@@ -12,7 +12,7 @@ import CategoryCarousel from '../components/CategoryCarousel';
 import { Skeleton, SkeletonImage, isRemoteImageSource } from '../components/Skeleton';
 
 const POPULAR = [
-  { catId: 'hair-care', svcId: 'hc-8', label: "Men's Haircut", price: 599 },
+  { catId: 'mens-grooming', svcId: 'hc-8', label: "Men's Haircut", price: 599 },
   { catId: 'facials', svcId: 'fa-2', label: 'Red Wine Facial', price: 3999 },
   { catId: 'nails', svcId: 'na-4', label: 'Gel Polish', price: 999 },
   { catId: 'massages', svcId: 'ms-1', label: 'Head Massage', price: 1000 },
