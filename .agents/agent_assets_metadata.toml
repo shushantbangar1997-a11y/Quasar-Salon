@@ -1,5 +1,4 @@
 uploads = []
-outputs = []
 
 [[generated]]
 id = "AC7YShRUMAPPbx5LQNCOv"
@@ -114,3 +113,9 @@ id = "D3GbJO4kdgX2XuKY46yfy"
 uri = "file://mobile/assets/services/waxing-men.png"
 type = "image"
 title = "men waxing luxury salon"
+
+[[outputs]]
+id = "ouLBhqYYRQw0FpbMQRqvt"
+uri = "file://mobile/assets/expo-qr.png"
+type = "image"
+title = "Expo Go QR Code"
